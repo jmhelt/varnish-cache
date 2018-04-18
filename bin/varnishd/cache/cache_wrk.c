@@ -277,6 +277,40 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	return (retval);
 }
 
+int
+Pool_Task_Enqueue(struct pool *pp, struct pool_task *task, enum task_prio prio)
+{
+	struct worker *wrk;
+	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
+	AN(task);
+	AN(task->func);
+	assert(prio < TASK_QUEUE_END);
+
+	Lck_Lock(&pp->mtx);
+
+	/* Enqueue the task */
+	pp->nqueued++;
+	pp->lqueue++;
+	VTAILQ_INSERT_TAIL(&pp->queues[prio], task, list);
+
+	/* If there's a free worker, have it check the queues */
+	wrk = pool_getidleworker(pp, prio);
+	if (wrk != NULL) {
+		AN(pp->nidle);
+		VTAILQ_REMOVE(&pp->idle_queue, &wrk->task, list);
+		pp->nidle--;
+		AZ(wrk->task.func);
+		wrk->task.func = NULL;
+		wrk->task.priv = NULL;
+		Lck_Unlock(&pp->mtx);
+		AZ(pthread_cond_signal(&wrk->cond));
+		return (0);
+	}
+	Lck_Unlock(&pp->mtx);
+
+	return (0);
+}
+
 /*--------------------------------------------------------------------
  * Empty function used as a pointer value for the thread exit condition.
  */
