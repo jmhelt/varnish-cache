@@ -47,6 +47,7 @@ struct pool {
 	unsigned			nidle;
 	struct taskhead			idle_queue;
 	struct taskhead			queues[TASK_QUEUE_END];
+	struct taskhead			fair_queue;
 	unsigned			nthr;
 	unsigned			dry;
 	unsigned			lqueue;

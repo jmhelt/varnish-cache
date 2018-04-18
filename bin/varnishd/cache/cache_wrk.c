@@ -307,20 +307,20 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 }
 
 int
-Pool_Task_Enqueue(struct pool *pp, struct pool_task *task, enum task_prio prio)
+Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
 {
 	// struct worker *wrk;
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
 	AN(task);
 	AN(task->func);
-	assert(prio < TASK_QUEUE_END);
+	AN(task->priv);
 
 	Lck_Lock(&pp->mtx);
 
 	/* Enqueue the task */
 	pp->nqueued++;
 	pp->lqueue++;
-	VTAILQ_INSERT_TAIL(&pp->queues[prio], task, list);
+	VTAILQ_INSERT_TAIL(&pp->fair_queue, task, list);
 
 	/* If there's a free worker, have it check the queues */
 	/* wrk = pool_getidleworker(pp, prio); */
@@ -383,6 +383,15 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 			if (tp != NULL) {
 				pp->lqueue--;
 				VTAILQ_REMOVE(&pp->queues[i], tp, list);
+				break;
+			}
+		}
+
+		if (tp == NULL) {
+			tp = VTAILQ_FIRST(&pp->fair_queue);
+			if (tp != NULL) {
+				pp->lqueue--;
+				VTAILQ_REMOVE(&pp->fair_queue, tp, list);
 				break;
 			}
 		}
