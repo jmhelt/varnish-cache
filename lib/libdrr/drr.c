@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -101,5 +102,79 @@ drr_enqueue(struct drr *drr, uint32_t key, void *v)
 void*
 drr_dequeue(struct drr *drr)
 {
-	return NULL;
+	bool gave_quantum = drr->gave_quantum;
+	struct drr_qn *qn;
+	struct drr_qn *tmp;
+	struct drr_vn *vn = NULL;
+	uint32_t n_active = drr->n_active;
+	uint32_t quantum = drr->quantum;
+	void *v = NULL;
+
+	if (n_active == 0)
+		return NULL;
+
+	if (drr->next)
+		qn = drr->next;
+	else
+		qn = VTAILQ_FIRST(&drr->active_q);
+
+	VTAILQ_FOREACH_FROM(qn, &drr->active_q, list) {
+
+		/* Give this queue a quantum if haven't already */
+		if (!gave_quantum) {
+			qn->credit += quantum;
+			gave_quantum = true;
+		}
+
+		/* Get first value from the queue */
+		assert(!VTAILQ_EMPTY(&qn->q));
+		vn = VTAILQ_FIRST(&qn->q);
+
+		/* TODO: Make this a real cost function based on value */
+		/* Perhaps we should pass in a cost_func as param? */
+		uint32_t cost = 1;
+
+		if (qn->credit >= cost) {
+			VTAILQ_REMOVE(&qn->q, vn, list);
+			qn->credit -= cost;
+		} else {
+			/* Not enough credit left for this queue. Move on. */
+			vn = NULL;
+			gave_quantum = false;
+		}
+
+		/* We found a value. We're done. */
+		if (vn) {
+			v = vn->v;
+			free(vn);
+			break;
+		}
+	}
+
+
+	/* If queue is no longer active */
+	if (v && VTAILQ_EMPTY(&qn->q)) {
+		/* Remove any existing credit */
+		qn->credit = 0;
+		qn->active = false;
+
+		/* Get next queue node before we remove this one */
+		tmp = VTAILQ_NEXT(qn, list);
+
+		/* Remove node from active queue */
+		VTAILQ_REMOVE(&drr->active_q, qn, list);
+
+		/* We'll start from tmp the next time this is called */
+		qn = tmp;
+		gave_quantum = false;
+		n_active -= 1;
+	}
+
+	/* Store state for next call */
+	drr->gave_quantum = gave_quantum;
+	drr->next = qn;
+	drr->n_active = n_active;
+
+	return v;
 }
+
