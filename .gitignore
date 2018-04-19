@@ -13,7 +13,11 @@ Makefile.in
 *.sw[op]
 *.trs
 
+# cscope
+cscope.files
+
 # Various auto-tools artifacts
+.dirstamp
 /aclocal.m4
 /autom4te.cache/
 /build-aux

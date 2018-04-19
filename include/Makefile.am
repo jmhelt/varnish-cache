@@ -76,7 +76,7 @@ nobase_pkginclude_HEADERS += \
 nobase_noinst_HEADERS = \
 	binary_heap.h \
 	compat/daemon.h \
-	vfl.h \
+	int_str_table.h \
 	libvcc.h \
 	vcli_serve.h \
 	vcs_version.h \
@@ -85,6 +85,7 @@ nobase_noinst_HEADERS = \
 	vend.h \
 	vev.h \
 	vfil.h \
+	vfl.h \
 	vin.h \
 	vjsn.h \
 	vlu.h \
@@ -94,8 +95,8 @@ nobase_noinst_HEADERS = \
 	vsc_priv.h \
 	vsl_priv.h \
 	vsm_priv.h \
-	vsub.h \
 	vss.h \
+	vsub.h \
 	vtcp.h \
 	vtree.h \
 	vus.h

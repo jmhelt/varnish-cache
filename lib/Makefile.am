@@ -1,6 +1,7 @@
 #
 
 SUBDIRS = \
+	libcuckoo \
 	libvarnish \
 	libvarnishapi \
 	libvcc \
