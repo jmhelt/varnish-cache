@@ -749,7 +749,6 @@ AC_CONFIG_FILES([
     etc/Makefile
     include/Makefile
     lib/Makefile
-    lib/libdrr/Makefile
     lib/libvarnish/Makefile
     lib/libvarnishapi/Makefile
     lib/libvcc/Makefile
@@ -770,10 +769,10 @@ AC_CONFIG_FILES([
 
 AC_LANG_PUSH([C++])
 
-AC_PROG_CXX
+AC_PROG_CXX([g++])
 AX_CXX_COMPILE_STDCXX(11)
 AC_CONFIG_FILES([
-	lib/libcuckoo/Makefile
+	lib/libdrr/Makefile
 ])
 
 AC_LANG_POP([C++])

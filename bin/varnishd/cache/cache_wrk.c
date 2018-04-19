@@ -291,7 +291,8 @@ Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
 	/* Enqueue the task */
 	pp->nqueued++;
 	pp->lqueue++;
-	VTAILQ_INSERT_TAIL(&pp->fair_queue, task, list);
+
+	AZ(drr_enqueue(pp->fair_queue, (void*)task));
 
 	/* If there's a free worker, have it check the queues */
 	/* wrk = pool_getidleworker(pp, prio); */
@@ -359,11 +360,9 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			tp = VTAILQ_FIRST(&pp->fair_queue);
-			if (tp != NULL) {
+			tp = (struct pool_task*)drr_dequeue(pp->fair_queue);
+			if (tp != NULL)
 				pp->lqueue--;
-				VTAILQ_REMOVE(&pp->fair_queue, tp, list);
-			}
 		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||

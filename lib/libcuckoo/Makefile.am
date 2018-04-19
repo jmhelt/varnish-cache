@@ -1,7 +1,7 @@
 noinst_LIBRARIES = libcuckoo.a
 
 libcuckoo_a_SOURCES = \
-	int_str_table.cc \
+	uint32_void_tbl.cc \
 	cuckoohash_config.hh \
 	cuckoohash_map.hh \
 	cuckoohash_util.hh \

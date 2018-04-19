@@ -1,33 +1,27 @@
 #ifndef DRR_H
 #define	DRR_H
 
-#include <stdbool.h>
 #include <stdint.h>
 
-/* Queue node */
-struct drr_qn {
-	size_t rid;
-	uint64_t credit;
-	bool active;
-};
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-/* Active node */
-struct drr_an {
-	struct drr_an *next;
-	struct drr_an *prev;
-	struct drr_qn *qn;
-};
+struct drr;
 
-/* Deficit round robin */
-struct drr {
-	uint32_t quantum;
-	uint32_t n_active;
-	struct drr_an *active_q;
-	struct drr_an *next;
-	bool gave_quantum;
-};
+struct drr*
+drr_init(uint32_t, uint32_t (*)(const void *v));
 
 void
-drr_init(void);
+drr_destroy(struct drr*);
 
+int
+drr_enqueue(struct drr*, void*);
+
+void*
+drr_dequeue(struct drr*);
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* DRR_H */

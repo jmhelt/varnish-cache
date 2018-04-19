@@ -4,7 +4,8 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib/libvgz \
 	-I$(top_builddir)/bin/varnishd \
-	-I$(top_builddir)/include
+	-I$(top_builddir)/include \
+	-lstdc++
 
 sbin_PROGRAMS = varnishd
 
@@ -167,7 +168,6 @@ varnishd_LDADD = \
 	$(top_builddir)/lib/libvarnish/libvarnish.a \
 	$(top_builddir)/lib/libvgz/libvgz.a \
 	$(top_builddir)/lib/libdrr/libdrr.a \
-	$(top_builddir)/lib/libcuckoo/libcuckoo.a \
 	@SAN_LDFLAGS@ \
 	@JEMALLOC_LDADD@ \
 	@PCRE_LIBS@ \
