@@ -28,21 +28,19 @@ VTAILQ_HEAD(active_head, drr_qn);
 
 /* Deficit round robin */
 struct drr {
-	uint32_t (*hash)(const void *v);
-	uint32_void_tbl *qs;
-	struct active_head active_q;
-	struct drr_qn *next;
-	uint32_t quantum;
-	uint32_t n_active;
-	bool gave_quantum;
+	uint32_void_tbl *qs;	     /* Queues */
+	struct active_head active_q; /* LL of active queues */
+	struct drr_qn *next;	     /* Next queue in active list to pull from */
+	uint32_t quantum;	     /* Quantum */
+	uint32_t n_active;	     /* Length of active queue */
+	bool gave_quantum;	     /* State for dequeue */
 };
 
 struct drr*
-drr_init(uint32_t quantum, uint32_t (*hash)(const void *v))
+drr_init(uint32_t quantum)
 {
 	struct drr *drr = malloc(sizeof(struct drr));
 
-	drr->hash = hash;
 	drr->qs = uint32_void_tbl_init(0);
 	VTAILQ_INIT(&drr->active_q);
 	drr->next = NULL;
@@ -56,6 +54,34 @@ drr_init(uint32_t quantum, uint32_t (*hash)(const void *v))
 void
 drr_destroy(struct drr *drr)
 {
+	struct drr_qn *qn;
+	struct drr_vn *vn;
+	uint32_void_tbl_const_iterator *end;
+	uint32_void_tbl_const_iterator *it;
+	uint32_void_tbl_locked_table *locked = uint32_void_tbl_lock_table(drr->qs);
+
+	it = uint32_void_tbl_locked_table_cbegin(locked);
+	end = uint32_void_tbl_locked_table_cend(locked);
+
+	/* Iterate through table and free all queue nodes */
+	for (; !uint32_void_tbl_const_iterator_equal(it, end); uint32_void_tbl_const_iterator_increment(it)) {
+		/* Free any value nodes still dangline off the queue node */
+		qn = *uint32_void_tbl_const_iterator_mapped(it);
+		while (!VTAILQ_EMPTY(&qn->q)) {
+			vn = VTAILQ_FIRST(&qn->q);
+			VTAILQ_REMOVE(&qn->q, vn, list);
+			free(vn);
+		}
+
+		free(qn);
+	}
+
+	/* Free the table */
+	uint32_void_tbl_const_iterator_free(it);
+	uint32_void_tbl_const_iterator_free(end);
+	uint32_void_tbl_locked_table_free(locked);
+	uint32_void_tbl_free(drr->qs);
+	free(drr);
 }
 
 struct drr_qn*

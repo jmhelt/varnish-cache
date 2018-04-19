@@ -6,7 +6,7 @@
 struct drr;
 
 struct drr*
-drr_init(uint32_t, uint32_t (*)(const void *v));
+drr_init(uint32_t);
 
 void
 drr_destroy(struct drr*);
