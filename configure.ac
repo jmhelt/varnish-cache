@@ -19,7 +19,7 @@ AC_CANONICAL_SYSTEM
 AC_LANG(C)
 
 AM_MAINTAINER_MODE([disable])
-AM_INIT_AUTOMAKE([1.11 foreign color-tests parallel-tests])
+AM_INIT_AUTOMAKE([1.11 foreign color-tests parallel-tests subdir-objects])
 AM_SILENT_RULES([yes])
 AC_DISABLE_STATIC
 AC_PROG_LIBTOOL
@@ -749,6 +749,7 @@ AC_CONFIG_FILES([
     etc/Makefile
     include/Makefile
     lib/Makefile
+    lib/libdrr/Makefile
     lib/libvarnish/Makefile
     lib/libvarnishapi/Makefile
     lib/libvcc/Makefile
@@ -765,4 +766,18 @@ AC_CONFIG_FILES([
     varnishapi.pc
     varnishapi-uninstalled.pc
 ])
+
+
+AC_LANG_PUSH([C++])
+
+LT_INIT
+
+AC_PROG_CXX([g++])
+AX_CXX_COMPILE_STDCXX(11)
+AC_CONFIG_FILES([
+	lib/libcuckoo/Makefile
+])
+
+AC_LANG_POP([C++])
+
 AC_OUTPUT
