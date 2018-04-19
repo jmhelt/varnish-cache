@@ -1,13 +1,16 @@
-noinst_LIBRARIES = libdrr.a
+lib_LTLIBRARIES = libdrr.la
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/include \
 	-I$(top_builddir)/include \
-	-pthread
+	-fPIC
 
-AM_LDFLAGS = $(AM_LT_LDFLAGS) -lstdc++ -static
+AM_LDFLAGS = \
+	$(AM_LT_LDFLAGS) \
+	-static-libstdc++ \
+	-shared
 
-libdrr_a_SOURCES = \
+libdrr_la_SOURCES = \
 	drr.c \
 	uint32_void_tbl.cc \
 	cuckoohash_config.hh \
@@ -15,5 +18,5 @@ libdrr_a_SOURCES = \
 	cuckoohash_util.hh \
 	libcuckoo_bucket_container.hh
 
-libdrr_a_LIBADD = $(AM_LT_LDFLAGS)
+libdrr_la_LIBADD = $(AM_LT_LDFLAGS)
 
