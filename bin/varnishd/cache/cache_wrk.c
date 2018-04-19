@@ -363,7 +363,6 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 			if (tp != NULL) {
 				pp->lqueue--;
 				VTAILQ_REMOVE(&pp->fair_queue, tp, list);
-				break;
 			}
 		}
 
