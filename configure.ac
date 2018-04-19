@@ -749,6 +749,7 @@ AC_CONFIG_FILES([
     etc/Makefile
     include/Makefile
     lib/Makefile
+    lib/libdrr/Makefile
     lib/libvarnish/Makefile
     lib/libvarnishapi/Makefile
     lib/libvcc/Makefile

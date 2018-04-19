@@ -166,6 +166,8 @@ varnishd_LDADD = \
 	$(top_builddir)/lib/libvcc/libvcc.a \
 	$(top_builddir)/lib/libvarnish/libvarnish.a \
 	$(top_builddir)/lib/libvgz/libvgz.a \
+	$(top_builddir)/lib/libdrr/libdrr.a \
+	$(top_builddir)/lib/libcuckoo/libcuckoo.a \
 	@SAN_LDFLAGS@ \
 	@JEMALLOC_LDADD@ \
 	@PCRE_LIBS@ \
