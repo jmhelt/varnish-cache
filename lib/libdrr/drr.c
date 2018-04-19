@@ -2,21 +2,23 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#include "uint32_void_tbl.h"
-
-#include "vqueue.h"
 #include "drr.h"
+#include "uint32_void_tbl.h"
+#include "vqueue.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+/* Value node */
+struct drr_vn {
+	VTAILQ_ENTRY(drr_vn) list;
+	void *v;
+};
 
-VSTAILQ_HEAD(q_head, pool_task);
+VTAILQ_HEAD(q_head, drr_vn);
 
 /* Queue node */
 struct drr_qn {
+	VTAILQ_ENTRY(drr_qn) list;
 	struct q_head q;
-	uint32_t rid;
+	uint32_t key;
 	uint32_t credit;
 	bool active;
 };
@@ -55,9 +57,44 @@ drr_destroy(struct drr *drr)
 {
 }
 
-int
-drr_enqueue(struct drr *drr, void *v)
+struct drr_qn*
+drr_add_queue(struct drr *drr, uint32_t key)
 {
+	struct drr_qn *qn = malloc(sizeof(struct drr_qn));
+	VTAILQ_INIT(&qn->q);
+	qn->key = key;
+	qn->credit = 0;
+	qn->active = false;
+
+	if (!uint32_void_tbl_insert(drr->qs, &key, (void**)&qn)) {
+		// TODO: Handle error
+	}
+
+	return qn;
+}
+
+int
+drr_enqueue(struct drr *drr, uint32_t key, void *v)
+{
+	struct drr_qn *qn;
+	struct drr_vn *vn;
+
+	/* Find or create queue */
+	if (!uint32_void_tbl_find(drr->qs, &key, (void**)&qn))
+		qn = drr_add_queue(drr, key);
+
+	/* Insert value */
+	vn = malloc(sizeof(struct drr_vn));
+	vn->v = v;
+	VTAILQ_INSERT_TAIL(&qn->q, vn, list);
+
+	/* If newly active, add to active queue */
+	if (!qn->active) {
+		VTAILQ_INSERT_TAIL(&drr->active_q, qn, list);
+		drr->n_active += 1;
+		qn->active = true;
+	}
+
 	return 0;
 }
 
@@ -66,8 +103,3 @@ drr_dequeue(struct drr *drr)
 {
 	return NULL;
 }
-
-#ifdef __cplusplus
-}
-#endif
-

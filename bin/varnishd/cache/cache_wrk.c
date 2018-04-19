@@ -291,8 +291,8 @@ Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
 	/* Enqueue the task */
 	pp->nqueued++;
 	pp->lqueue++;
-
-	AZ(drr_enqueue(pp->fair_queue, (void*)task));
+	/* TODO: Fix this */
+	AZ(drr_enqueue(pp->fair_queue, 0, (void*)task));
 
 	/* If there's a free worker, have it check the queues */
 	/* wrk = pool_getidleworker(pp, prio); */
