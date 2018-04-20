@@ -20,3 +20,10 @@ libdrr_la_SOURCES = \
 
 libdrr_la_LIBADD = $(AM_LT_LDFLAGS)
 
+TESTS = drr_test
+
+noinst_PROGRAMS = ${TESTS}
+
+drr_test_SOURCES = drr_test.c
+drr_test_LDADD = libdrr.la
+drr_test_LDFLAGS = -pthread
