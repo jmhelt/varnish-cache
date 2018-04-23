@@ -277,11 +277,23 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	return (retval);
 }
 
+uint32_t gen_key(const char *str)
+{
+	uint32_t key = 0;
+	while(*str != '\0') {
+		key += *(str++);
+	}
+	return key;
+}
+
 int
-Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
+Pool_Task_Enqueue(struct pool *pp, struct req *req)
 {
 	// struct worker *wrk;
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
+	struct pool_task *task = &req->task;
+	uint32_t key = gen_key(req->http->hd[5].b);
+	VSLb(req->vsl, SLT_Debug, "generated key %d for string %s", key, req->http->hd[5].b);
 	AN(task);
 	AN(task->func);
 	AN(task->priv);
@@ -292,7 +304,7 @@ Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
 	pp->nqueued++;
 	pp->lqueue++;
 	/* TODO: Fix this */
-	AZ(drr_enqueue(pp->fair_queue, 0, (void*)task));
+	AZ(drr_enqueue(pp->fair_queue, key, (void*)task));
 
 	/* If there's a free worker, have it check the queues */
 	/* wrk = pool_getidleworker(pp, prio); */
@@ -333,6 +345,7 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 {
 	struct pool_task *tp = NULL;
 	struct pool_task tpx, tps;
+	struct req *req;
 	int i, prio_lim;
 
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
@@ -361,8 +374,11 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 
 		if (tp == NULL) {
 			tp = (struct pool_task*)drr_dequeue(pp->fair_queue);
-			if (tp != NULL)
+			if (tp != NULL) {
+				req = (struct req *)(tp->priv);	
+				VSLb(req->vsl, SLT_Debug, "dequeueing task %s", req->http->hd[5].b);
 				pp->lqueue--;
+			}
 		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||

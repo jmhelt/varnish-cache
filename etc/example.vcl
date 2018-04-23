@@ -15,6 +15,11 @@ vcl 4.0;
 # Default backend definition. Set this to point to your content server.
 backend default {
     .host = "127.0.0.1";
+    .port = "80";
+}
+
+backend nginx {
+    .host = "127.0.0.1";
     .port = "8080";
 }
 
@@ -23,6 +28,11 @@ sub vcl_recv {
     #
     # Typically you clean up the request here, removing cookies you don't need,
     # rewriting the request, etc.
+    if (req.http.host ~ "^nginx") {
+        set req.backend_hint = nginx;
+    } else {
+        set req.backend_hint = default;
+    }
 }
 
 sub vcl_backend_response {

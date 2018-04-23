@@ -300,7 +300,8 @@ const char *sess_close_2str(enum sess_close sc, int want_desc);
 
 /* cache_pool.c */
 void Pool_Init(void);
-int Pool_Task_Enqueue(struct pool *pp, struct pool_task *task);
+uint32_t gen_key(const char *str);
+int Pool_Task_Enqueue(struct pool *pp, struct req *req);
 int Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio);
 int Pool_Task_Arg(struct worker *, enum task_prio, task_func_t *,
     const void *arg, size_t arg_len);
