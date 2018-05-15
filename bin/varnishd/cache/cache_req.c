@@ -94,6 +94,7 @@ Req_New(const struct worker *wrk, struct sess *sp)
 	req->magic = REQ_MAGIC;
 	req->sp = sp;
 	req->top = req;	// esi overrides
+	req->cust_id = 0;
 
 	e = (char*)req + sz;
 	p = (char*)(req + 1);
@@ -196,6 +197,7 @@ Req_Cleanup(struct sess *sp, struct worker *wrk, struct req *req)
 
 	req->director_hint = NULL;
 	req->restarts = 0;
+	req->cust_id = 0;
 
 	AZ(req->esi_level);
 	assert(req->top == req);

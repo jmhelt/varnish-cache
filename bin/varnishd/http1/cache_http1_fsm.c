@@ -368,6 +368,19 @@ http1_dissect(struct worker *wrk, struct req *req)
 /*----------------------------------------------------------------------
  */
 
+/* TODO: Real hash function */
+uint32_t
+get_cust_id(const struct req *req)
+{
+	uint32_t cust_id = 0;
+	const char *str;
+
+	for (str = req->http->hd[5].b; *str != '\0'; str++)
+		cust_id += *str;
+
+	return cust_id;
+}
+
 static void
 HTTP1_Session(struct worker *wrk, struct req *req)
 {
@@ -485,6 +498,10 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 					return;
 				}
 			}
+
+			AZ(req->cust_id);
+			req->cust_id = get_cust_id(req);
+
 			req->req_step = R_STP_TRANSPORT;
 			http1_setstate(sp, H1PROC);
 		} else if (st == H1BUSY) {
