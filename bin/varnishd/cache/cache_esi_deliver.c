@@ -126,6 +126,7 @@ ved_include(struct req *preq, const char *src, const char *host,
 		CHECK_OBJ_NOTNULL(preq->top, REQ_MAGIC);
 
 	req->top = preq->top;
+	req->cust_id = preq->cust_id;
 
 	HTTP_Copy(req->http0, preq->http0);
 
