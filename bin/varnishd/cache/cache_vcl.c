@@ -36,6 +36,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <papi.h>
+
 #include "cache_varnishd.h"
 #include "common/heritage.h"
 
@@ -1100,6 +1102,43 @@ vcl_cli_show(struct cli *cli, const char * const *av, void *priv)
 	}
 }
 
+#define N_EVENTS 4
+static int events[N_EVENTS] = {PAPI_TOT_CYC, PAPI_TOT_INS, PAPI_L1_DCM, PAPI_L2_DCM};
+
+static inline int
+create_eventset(void)
+{
+	int eventset = PAPI_NULL;
+	int i;
+
+	AZ(PAPI_create_eventset(&eventset));
+	for (i = 0; i < N_EVENTS; i++) {
+		AZ(PAPI_add_event(eventset, events[i]));
+	}
+
+	return eventset;
+}
+
+static inline void
+destroy_eventset(int eventset)
+{
+	AZ(PAPI_cleanup_eventset(eventset));
+	AZ(PAPI_destroy_eventset(&eventset));
+}
+
+static inline void
+print_values(struct vsl_log *vsl, unsigned method, long long *values)
+{
+	int i;
+	char out[PAPI_MAX_STR_LEN];
+
+	for (i = 0; i < N_EVENTS; i++) {
+		PAPI_event_code_to_name(events[i], out);
+		VSLb(vsl, SLT_VCL_perf, "%s,%s,%lld", VCL_Method_Name(method),
+		     out, values[i]);
+	}
+}
+
 /*--------------------------------------------------------------------
  * Method functions to call into VCL programs.
  *
@@ -1111,6 +1150,8 @@ static void
 vcl_call_method(struct worker *wrk, struct req *req, struct busyobj *bo,
     void *specific, unsigned method, vcl_func_f *func)
 {
+	int eventset;
+	long long values[N_EVENTS];
 	uintptr_t aws;
 	struct vsl_log *vsl = NULL;
 	struct vrt_ctx ctx;
@@ -1157,7 +1198,12 @@ vcl_call_method(struct worker *wrk, struct req *req, struct busyobj *bo,
 	wrk->seen_methods |= method;
 	AN(vsl);
 	VSLb(vsl, SLT_VCL_call, "%s", VCL_Method_Name(method));
+	eventset = create_eventset();
+	AZ(PAPI_start(eventset));
 	func(&ctx);
+	AZ(PAPI_stop(eventset, values));
+	destroy_eventset(eventset);
+	print_values(ctx.vsl, method, values);
 	VSLb(vsl, SLT_VCL_return, "%s", VCL_Return_Name(wrk->handling));
 	wrk->cur_method |= 1;		// Magic marker
 	if (wrk->handling == VCL_RET_FAIL)

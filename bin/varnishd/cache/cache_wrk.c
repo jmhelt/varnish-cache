@@ -33,6 +33,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <papi.h>
 
 #include "cache_varnishd.h"
 #include "cache_pool.h"
@@ -104,6 +105,8 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	AN(stacksize);
 	AN(thread_workspace);
 
+	AZ(PAPI_register_thread());
+
 	THR_SetName("cache-worker");
 	w = &ww;
 	INIT_OBJ(w, WORKER_MAGIC);
@@ -125,6 +128,8 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	AZ(pthread_cond_destroy(&w->cond));
 	HSH_Cleanup(w);
 	Pool_Sumstat(w);
+
+	AZ(PAPI_unregister_thread());
 }
 
 /*--------------------------------------------------------------------

@@ -270,6 +270,10 @@ SLTM(VCL_return, 0, "VCL method return value",
 	"Logs the VCL method terminating statement.\n\n"
 )
 
+SLTM(VCL_perf, 0, "VCL performance data",
+	"Logs performance metrics after executing the VCL method.\n\n"
+)
+
 SLTM(ReqStart, 0, "Client request start",
 	"Start of request processing. Logs the client address, port number "
 	" and listener endpoint name (from the -a command-line argument).\n\n"

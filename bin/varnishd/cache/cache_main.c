@@ -43,6 +43,9 @@
 #  include <pthread_np.h>
 #endif
 
+#include <papi.h>
+#include <pthread.h>
+
 #include "common/heritage.h"
 
 #include "vcli_serve.h"
@@ -289,7 +292,6 @@ child_sigmagic(size_t altstksz)
 	(void)sigaction(SIGSEGV, &sa, NULL);
 }
 
-
 /*=====================================================================
  * Run the child process
  */
@@ -297,6 +299,13 @@ child_sigmagic(size_t altstksz)
 void
 child_main(int sigmagic, size_t altstksz)
 {
+	int err;
+	if ((err = PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT) {
+		VSL(SLT_Debug, 0, "PAPI init failed %d: %s\n", err, PAPI_strerror(err));
+		exit(1);
+	}
+
+	AZ(PAPI_thread_init(pthread_self));
 
 	if (sigmagic)
 		child_sigmagic(altstksz);
