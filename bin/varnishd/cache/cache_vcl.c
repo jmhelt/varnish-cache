@@ -1103,7 +1103,7 @@ vcl_cli_show(struct cli *cli, const char * const *av, void *priv)
 }
 
 #define N_EVENTS 4
-static int events[N_EVENTS] = {PAPI_TOT_CYC, PAPI_TOT_INS, PAPI_L1_DCM, PAPI_L2_DCM};
+static int events[N_EVENTS] = {PAPI_TOT_INS, PAPI_L2_ICM, PAPI_L2_DCM, PAPI_L3_TCM};
 
 static inline int
 create_eventset(void)
