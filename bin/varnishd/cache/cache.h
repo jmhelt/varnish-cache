@@ -260,6 +260,8 @@ struct worker {
 	unsigned		cur_method;
 	unsigned		seen_methods;
 	unsigned		handling;
+
+	int			eventset;
 };
 
 /* Stored object -----------------------------------------------------
