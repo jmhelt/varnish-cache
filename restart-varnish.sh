@@ -8,9 +8,11 @@ fi
 # Kill existing varnishd processes
 (! pgrep varnishd &> /dev/null) || (sudo killall -q varnishd && sleep 2)
 
-if [[ ! -z $1 ]]; then
+if [[ -z $1 ]]; then
+    VCL="-b 10.0.0.2"
+else
     VCL="-f $1"
 fi
 
 # Start varnishd
-sudo varnishd -a :80 -a :9090 -b 10.0.0.2 $VCL -p vcc_allow_inline_c=on
+sudo varnishd -a :80 -a :9090 $VCL -p vcc_allow_inline_c=on
