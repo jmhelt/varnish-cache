@@ -13,5 +13,4 @@ if [[ ! -z $1 ]]; then
 fi
 
 # Start varnishd
-cd "${BASH_SOURCE%/*}"
-sudo varnishd -a :80 -a :9090 "$VCL "-p vcc_allow_inline_c=on
+sudo varnishd -a :80 -a :9090 -b 10.0.0.2 $VCL -p vcc_allow_inline_c=on
