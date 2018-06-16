@@ -306,10 +306,22 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	return (retval);
 }
 
-int
-Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
+uint32_t
+gen_key(const char *str)
 {
-	// struct worker *wrk;
+	uint32_t key = 0;
+	while(*str != '\0') {
+		key += *(str++);
+	}
+	return key;
+}
+
+int
+Pool_Task_Enqueue(struct pool *pp, struct req *req)
+{
+	struct pool_task *task = &req->task;
+	uint32_t key = gen_key(req->http->hd[5].b);
+
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
 	AN(task);
 	AN(task->func);
@@ -318,23 +330,10 @@ Pool_Task_Enqueue(struct pool *pp, struct pool_task *task)
 	Lck_Lock(&pp->mtx);
 
 	/* Enqueue the task */
+	AZ(drr_enqueue(pp->fair_queue, key, (void *)task));
 	pp->nqueued++;
 	pp->lqueue++;
-	VTAILQ_INSERT_TAIL(&pp->fair_queue, task, list);
 
-	/* If there's a free worker, have it check the queues */
-	/* wrk = pool_getidleworker(pp, prio); */
-	/* if (wrk != NULL) { */
-	/* 	AN(pp->nidle); */
-	/* 	VTAILQ_REMOVE(&pp->idle_queue, &wrk->task, list); */
-	/* 	pp->nidle--; */
-	/* 	AZ(wrk->task.func); */
-	/* 	wrk->task.func = NULL; */
-	/* 	wrk->task.priv = NULL; */
-	/* 	Lck_Unlock(&pp->mtx); */
-	/* 	AZ(pthread_cond_signal(&wrk->cond)); */
-	/* 	return (0); */
-	/* } */
 	Lck_Unlock(&pp->mtx);
 
 	return (0);
@@ -388,12 +387,9 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			tp = VTAILQ_FIRST(&pp->fair_queue);
-			if (tp != NULL) {
+			tp = (struct pool_task*)drr_dequeue(pp->fair_queue);
+			if (tp != NULL)
 				pp->lqueue--;
-				VTAILQ_REMOVE(&pp->fair_queue, tp, list);
-				break;
-			}
 		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||
