@@ -15,4 +15,4 @@ else
 fi
 
 # Start varnishd
-sudo varnishd -a :80 -a :9090 $VCL -p vcc_allow_inline_c=on
+sudo varnishd -a 192.168.1.1:80 -a 192.168.1.1:9090 $VCL -p vcc_allow_inline_c=on
