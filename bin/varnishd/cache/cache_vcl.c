@@ -41,6 +41,7 @@
 #include "cache_varnishd.h"
 #include "common/heritage.h"
 
+#include "vtim.h"
 #include "vcl.h"
 
 #include "cache_director.h"
@@ -1189,6 +1190,9 @@ vcl_call_method(struct worker *wrk, struct req *req, struct busyobj *bo,
 	 * wrk->aws, but they can reserve and return from it.
 	 */
 	assert(aws == WS_Snapshot(wrk->aws));
+
+	if (req != NULL)
+		VSLb_ts_req(req, VCL_Method_Name(method), W_TIM_real(wrk));
 }
 
 #define VCL_MET_MAC(func, upper, typ, bitmap)				\
