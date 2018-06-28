@@ -431,6 +431,48 @@ accum_perf_ctrs(struct worker *wrk, struct req *req)
 		req->perf[i] += perf[i];
 }
 
+void
+PAPI_handle_error(int retval)
+{
+     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+     exit(EXIT_FAILURE);
+}
+
+static inline void
+print_perf_ctrs(struct req *req)
+{
+	int i;
+	struct vsl_log *vsl = req->vsl;
+	long long *perf = req->perf;
+	char out[PAPI_MAX_STR_LEN];
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		PAPI_event_code_to_name(events[i], out);
+		VSLb(vsl, SLT_VCL_perf, "REQ,%s,%lld", out, perf[i]);
+	}
+}
+
+static inline void
+start_perf_ctrs(struct worker *wrk, struct req *req)
+{
+	int ret;
+	if ((ret = PAPI_start(wrk->eventset)) != PAPI_OK)
+		PAPI_handle_error(ret);
+}
+
+static inline void
+accum_perf_ctrs(struct worker *wrk, struct req *req)
+{
+	long long perf[N_COUNTERS];
+	int i, ret;
+
+	if ((ret = PAPI_stop(wrk->eventset, perf)) != PAPI_OK)
+		PAPI_handle_error(ret);
+
+	for (i = 0; i < N_COUNTERS; i++)
+		req->perf[i] += perf[i];
+}
+
 static void
 HTTP1_Session(struct worker *wrk, struct req *req)
 {
