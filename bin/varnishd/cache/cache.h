@@ -37,6 +37,7 @@
 #endif
 
 #include <math.h>
+#include <papi.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <sys/types.h>
@@ -434,6 +435,10 @@ struct busyobj {
 
 /*--------------------------------------------------------------------*/
 
+#define N_COUNTERS 4
+static const int events[N_COUNTERS] = {PAPI_TOT_INS, PAPI_TOT_CYC, PAPI_L2_TCM,
+				       PAPI_L3_TCM};
+
 struct req {
 	unsigned		magic;
 #define REQ_MAGIC		0x2751aaa1
@@ -522,6 +527,7 @@ struct req {
 
 	/* Temporary accounting */
 	struct acct_req		acct;
+	long long		perf[N_COUNTERS];
 
 	struct vrt_privs	privs[1];
 };
