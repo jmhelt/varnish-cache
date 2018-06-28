@@ -381,13 +381,55 @@ get_cust_id(const struct req *req)
 	return cust_id;
 }
 
+void
+PAPI_handle_error(int retval)
+{
+     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
+     exit(EXIT_FAILURE);
+}
+
+static inline void
+print_perf_ctrs(struct req *req)
+{
+	int i;
+	struct vsl_log *vsl = req->vsl;
+	long long *perf = req->perf;
+	char out[PAPI_MAX_STR_LEN];
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		PAPI_event_code_to_name(events[i], out);
+		VSLb(vsl, SLT_VCL_perf, "REQ,%s,%lld", out, perf[i]);
+	}
+}
+
+static inline void
+start_perf_ctrs(struct worker *wrk, struct req *req)
+{
+	int ret;
+	if ((ret = PAPI_start(wrk->eventset)) != PAPI_OK)
+		PAPI_handle_error(ret);
+}
+
+static inline void
+accum_perf_ctrs(struct worker *wrk, struct req *req)
+{
+	long long perf[N_COUNTERS];
+	int i, ret;
+
+	if ((ret = PAPI_stop(wrk->eventset, perf)) != PAPI_OK)
+		PAPI_handle_error(ret);
+
+	for (i = 0; i < N_COUNTERS; i++)
+		req->perf[i] += perf[i];
+}
+
 static void
 HTTP1_Session(struct worker *wrk, struct req *req)
 {
 	enum htc_status_e hs;
 	struct sess *sp;
 	const char *st;
-	int i;
+	int i, ret, state;
 
 	CHECK_OBJ_NOTNULL(wrk, WORKER_MAGIC);
 	CHECK_OBJ_NOTNULL(req, REQ_MAGIC);
@@ -407,6 +449,13 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 		else
 			SES_Close(sp, SC_TX_ERROR);
 		WS_Release(req->htc->ws, 0);
+
+		if ((ret = PAPI_state(wrk->eventset, &state)) != PAPI_OK)
+			PAPI_handle_error(ret);
+		if (state == PAPI_RUNNING)
+			accum_perf_ctrs(wrk, req);
+
+		print_perf_ctrs(req);
 		AN(http1_req_cleanup(sp, wrk, req));
 		return;
 	}
@@ -416,6 +465,10 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 	while (1) {
 		st = http1_getstate(sp);
 		if (st == H1NEWREQ) {
+			for (i = 0; i < N_COUNTERS; i++)
+				AZ(req->perf[i]);
+
+			start_perf_ctrs(wrk, req);
 			CHECK_OBJ_NOTNULL(req->transport, TRANSPORT_MAGIC);
 			assert(isnan(req->t_prev));
 			assert(isnan(req->t_req));
@@ -432,6 +485,8 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			if (hs < HTC_S_EMPTY) {
 				req->acct.req_hdrbytes +=
 				    req->htc->rxbuf_e - req->htc->rxbuf_b;
+				accum_perf_ctrs(wrk, req);
+				print_perf_ctrs(req);
 				Req_AcctLogCharge(wrk->stats, req);
 				Req_Release(req);
 				switch (hs) {
@@ -453,6 +508,8 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			}
 			if (hs == HTC_S_IDLE) {
 				wrk->stats->sess_herd++;
+				accum_perf_ctrs(wrk, req);
+				print_perf_ctrs(req);
 				Req_Release(req);
 				SES_Wait(sp, &HTTP1_transport);
 				return;
@@ -516,11 +573,14 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			return;
 		} else if (st == H1BUSY) {
 			CHECK_OBJ_NOTNULL(req->transport, TRANSPORT_MAGIC);
+			start_perf_ctrs(wrk, req);
 			/*
 			 * Return from waitinglist.
 			 * Check to see if the remote has left.
 			 */
 			if (VTCP_check_hup(sp->fd)) {
+				accum_perf_ctrs(wrk, req);
+				print_perf_ctrs(req);
 				http1_cleanup_waiting(wrk, req, SC_REM_CLOSE);
 				return;
 			}
@@ -528,14 +588,18 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 		} else if (st == H1PROC) {
 			req->task.func = http1_req;
 			req->task.priv = req;
-			if (CNT_Request(wrk, req) == REQ_FSM_DISEMBARK)
+			if (CNT_Request(wrk, req) == REQ_FSM_DISEMBARK) {
+				accum_perf_ctrs(wrk, req);
 				return;
+			}
 			req->task.func = NULL;
 			req->task.priv = NULL;
 			AZ(req->ws->r);
 			AZ(wrk->aws->r);
 			http1_setstate(sp, H1CLEANUP);
 		} else if (st == H1CLEANUP) {
+			accum_perf_ctrs(wrk, req);
+			print_perf_ctrs(req);
 			if (http1_req_cleanup(sp, wrk, req))
 				return;
 			HTC_RxInit(req->htc, req->ws);
