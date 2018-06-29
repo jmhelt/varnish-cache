@@ -133,10 +133,13 @@ drr_get_cost(uint32_t key)
 	switch (key) {
 	case 2121: // 192.168.1.1/index.html
 		cost = 19; // jwt
+		break;
 	case 3356: // 192.168.1.1/index-embed-json-005.html
 		cost = 401;
+		break;
 	default:
 		cost = 1;
+		break;
 	}
 
 	return cost;
