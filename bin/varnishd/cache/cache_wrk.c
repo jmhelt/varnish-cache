@@ -98,12 +98,11 @@ WRK_BgThread(pthread_t *thr, const char *name, bgthread_t *func, void *priv)
 static inline int
 create_eventset(void)
 {
-	int events[4] = {PAPI_TOT_INS, PAPI_L2_ICM, PAPI_L2_DCM, PAPI_L3_TCM};
 	int eventset = PAPI_NULL;
 	int i;
 
 	AZ(PAPI_create_eventset(&eventset));
-	for (i = 0; i < sizeof(events) / sizeof(events[0]); i++) {
+	for (i = 0; i < N_COUNTERS; i++) {
 		AZ(PAPI_add_event(eventset, events[i]));
 	}
 
