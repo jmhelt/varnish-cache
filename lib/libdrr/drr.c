@@ -125,6 +125,23 @@ drr_enqueue(struct drr *drr, uint32_t key, void *v)
 	return 0;
 }
 
+uint32_t
+drr_get_cost(uint32_t key)
+{
+	uint32_t cost;
+
+	switch (key) {
+	case 2121: // 192.168.1.1/index.html
+		cost = 19; // jwt
+	case 3356: // 192.168.1.1/index-embed-json-005.html
+		cost = 401;
+	default:
+		cost = 1;
+	}
+
+	return cost;
+}
+
 void*
 drr_dequeue(struct drr *drr)
 {
@@ -134,6 +151,7 @@ drr_dequeue(struct drr *drr)
 	struct drr_vn *vn = NULL;
 	uint32_t n_active = drr->n_active;
 	uint32_t quantum = drr->quantum;
+	uint32_t key;
 	void *v = NULL;
 
 	if (n_active == 0)
@@ -160,7 +178,8 @@ drr_dequeue(struct drr *drr)
 
 		/* TODO: Make this a real cost function based on value */
 		/* Perhaps we should pass in a cost_func as param? */
-		uint32_t cost = 1;
+		key = qn->key;
+		uint32_t cost = drr_get_cost(key);
 
 		if (qn->credit >= cost) {
 			VTAILQ_REMOVE(&qn->q, vn, list);

@@ -156,7 +156,7 @@ pool_mkpool(unsigned pool_no)
 
 	VTAILQ_INIT(&pp->idle_queue);
 	VTAILQ_INIT(&pp->poolsocks);
-	pp->fair_queue = drr_init(1);
+	pp->fair_queue = drr_init(500);
 	for (i = 0; i < TASK_QUEUE_END; i++)
 		VTAILQ_INIT(&pp->queues[i]);
 	AZ(pthread_cond_init(&pp->herder_cond, NULL));

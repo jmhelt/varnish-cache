@@ -306,21 +306,11 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	return (retval);
 }
 
-uint32_t
-gen_key(const char *str)
-{
-	uint32_t key = 0;
-	while(*str != '\0') {
-		key += *(str++);
-	}
-	return key;
-}
-
 int
 Pool_Task_Enqueue(struct pool *pp, struct req *req)
 {
 	struct pool_task *task = &req->task;
-	uint32_t key = gen_key(req->http->hd[5].b);
+	uint32_t key = req->cust_id;
 
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
 	AN(task);
