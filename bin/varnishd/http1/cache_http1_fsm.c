@@ -611,9 +611,10 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 
 			/* Queue request before continuing processing to enforce fairness */
 			req->req_step = R_STP_TRANSPORT;
-			http1_setstate(sp, H1PROC);
+			http1_setstate(sp, H1BUSY);
 			req->task.func = http1_req;
 			req->task.priv = req;
+			accum_perf_ctrs(wrk, req);
 			AZ(Pool_Task_Enqueue(wrk->pool, req));
 
 			/* This worker is relieved of duty */
