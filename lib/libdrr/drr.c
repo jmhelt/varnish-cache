@@ -131,15 +131,26 @@ drr_get_cost(uint32_t key)
 	uint32_t cost;
 
 	switch (key) {
-	case 2121: // 192.168.1.1/index.html
+        case 1: // ('noop', '/index.html')
+		cost = 14;
+		break;
+        case 2: // ('embed-json-noload', '/index-embed-json-001.html')
+		cost = 90;
+		break;
+	case 3: // ('embed-json-noload', '/index-embed-json-005.html')
+		cost = 401;
+		break;
+        case 4: // ('geoip2', '/index.html')
+		cost = 15;
+		break;
+	case 5: // ('jwt', '/index.html')
 		cost = 19; // jwt
 		break;
-	case 3356: // 192.168.1.1/index-embed-json-005.html
-		cost = 401;
+	case 6: // ('syslog', '/index.html')
+		cost = 16;
 		break;
 	default:
 		cost = 1;
-		break;
 	}
 
 	return cost;
