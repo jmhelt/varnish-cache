@@ -372,13 +372,21 @@ http1_dissect(struct worker *wrk, struct req *req)
 uint32_t
 get_cust_id(const struct req *req)
 {
-	uint32_t cust_id = 0;
-	const char *str;
+	const char h[15] = "X-Customer-ID:";
+	const char *hd;
+	int i;
+	uint32_t id = 0;
 
-	for (str = req->http->hd[5].b; *str != '\0'; str++)
-		cust_id += *str;
+	for (i = 0; i < req->http->nhd; i++) {
+		hd = req->http->hd[i].b;
+		if (hd && strncmp(hd, h, sizeof(h) - 1) == 0) {
+			hd += sizeof(h) - 1;
+			id = atoi(hd);
+			break;
+		}
+	}
 
-	return cust_id;
+	return id;
 }
 
 void

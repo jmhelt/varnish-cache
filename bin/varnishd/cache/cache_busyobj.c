@@ -130,8 +130,6 @@ VBO_GetBusyObj(struct worker *wrk, const struct req *req)
 
 	bo->do_stream = 1;
 
-	AZ(bo->cust_id);
-	AN(req->cust_id);
 	bo->cust_id = req->cust_id;
 
 	bo->director_req = req->director_hint;
