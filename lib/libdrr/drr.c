@@ -140,7 +140,7 @@ drr_get_cost(uint32_t key)
 	case 3: // ('embed-json-noload', '/index-embed-json-005.html')
 		cost = 401;
 		break;
-        case 4: // ('geoip2', '/index.html')
+	case 4: // ('geoip2', '/index.html')
 		cost = 15;
 		break;
 	case 5: // ('jwt', '/index.html')
@@ -148,6 +148,15 @@ drr_get_cost(uint32_t key)
 		break;
 	case 6: // ('syslog', '/index.html')
 		cost = 16;
+		break;
+	case 7: // ('noop', '/rand/1k.txt')
+		cost = 5;
+		break;
+ 	case 8: // ('noop', '/rand/20k.txt')
+		cost = 17;
+		break;
+ 	case 9: // ('noop', '/rand/40k.txt')
+		cost = 34;
 		break;
 	default:
 		cost = 1;
