@@ -66,6 +66,7 @@ struct wrk_accept {
 	socklen_t		acceptaddrlen;
 	int			acceptsock;
 	struct listen_sock	*acceptlsock;
+	struct pool_task	task;
 };
 
 struct poolsock {
@@ -375,9 +376,16 @@ vca_make_session(struct worker *wrk, void *arg)
 	if (VTCP_blocking(wa->acceptsock)) {
 		closefd(&wa->acceptsock);
 		wrk->stats->sess_drop++;	// XXX Better counter ?
-		WS_Release(wrk->aws, 0);
+		FREE_OBJ(wa);
+		// WS_Release(wrk->aws, 0);
 		return;
 	}
+
+	/* Copy wa into worker's workspace */
+	assert(sizeof(*wa) <= WS_Reserve(wrk->aws, sizeof(*wa)));
+	memcpy(wrk->aws->f, wa, sizeof(*wa));
+	FREE_OBJ(wa);
+	wa = (struct wrk_accept *)wrk->aws->f;
 
 	/* Turn accepted socket into a session */
 	AN(wrk->aws->r);
@@ -449,7 +457,7 @@ vca_make_session(struct worker *wrk, void *arg)
 static void v_matchproto_(task_func_t)
 vca_accept_task(struct worker *wrk, void *arg)
 {
-	struct wrk_accept wa;
+	struct wrk_accept *wa;
 	struct poolsock *ps;
 	struct listen_sock *ls;
 	int i;
@@ -463,15 +471,15 @@ vca_accept_task(struct worker *wrk, void *arg)
 		VTIM_sleep(.1);
 
 	while (!ps->pool->die) {
-		INIT_OBJ(&wa, WRK_ACCEPT_MAGIC);
-		wa.acceptlsock = ls;
+		ALLOC_OBJ(wa, WRK_ACCEPT_MAGIC);
+		wa->acceptlsock = ls;
 
 		vca_pace_check();
 
-		wa.acceptaddrlen = sizeof wa.acceptaddr;
+		wa->acceptaddrlen = sizeof wa->acceptaddr;
 		do {
-			i = accept(ls->sock, (void*)&wa.acceptaddr,
-				   &wa.acceptaddrlen);
+			i = accept(ls->sock, (void*)&wa->acceptaddr,
+				   &wa->acceptaddrlen);
 		} while (i < 0 && errno == EAGAIN);
 
 		if (i < 0 && ps->pool->die) {
@@ -510,21 +518,11 @@ vca_accept_task(struct worker *wrk, void *arg)
 			continue;
 		}
 
-		wa.acceptsock = i;
+		wa->acceptsock = i;
 
-		if (!Pool_Task_Arg(wrk, TASK_QUEUE_VCA,
-		    vca_make_session, &wa, sizeof wa)) {
-			/*
-			 * We couldn't get another thread, so we will handle
-			 * the request in this worker thread, but first we
-			 * must reschedule the listening task so it will be
-			 * taken up by another thread again.
-			 */
-			if (!ps->pool->die)
-				AZ(Pool_Task(wrk->pool, &ps->task,
-				    TASK_QUEUE_VCA));
-			return;
-		}
+		wa->task.func = vca_make_session;
+		wa->task.priv = wa;
+		AZ(Pool_Task(wrk->pool, &wa->task, TASK_QUEUE_RESERVE));
 		if (!ps->pool->die && DO_DEBUG(DBG_SLOW_ACCEPTOR))
 			VTIM_sleep(2.0);
 
