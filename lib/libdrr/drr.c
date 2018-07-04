@@ -158,6 +158,24 @@ drr_get_cost(uint32_t key)
  	case 9: // ('noop', '/rand/40k.txt')
 		cost = 34;
 		break;
+ 	case 10: // ('spin-1e4', 'index.html')
+		cost = 17;
+		break;
+ 	case 11: // ('spin-1e5', 'index.html')
+		cost = 40;
+		break;
+ 	case 12: // ('spin-1e6', 'index.html')
+		cost = 273;
+		break;
+ 	case 13: // ('spin-1e7', 'index.html')
+		cost = 2600;
+		break;
+ 	case 14: // ('spin-1e8', 'index.html')
+		cost = 25876;
+		break;
+ 	case 15: // ('spin-1e9', 'index.html')
+		cost = 258635;
+		break;
 	default:
 		cost = 1;
 	}
