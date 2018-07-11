@@ -11,6 +11,7 @@
 struct rr_vn {
 	VTAILQ_ENTRY(rr_vn) list;
 	void *v;
+	uint32_t amount_charged;
 };
 
 VTAILQ_HEAD(q_head, rr_vn);
@@ -19,8 +20,10 @@ VTAILQ_HEAD(q_head, rr_vn);
 struct rr_qn {
 	VTAILQ_ENTRY(rr_qn) list;
 	struct q_head q;
+	struct q_head in_progress;
+	int64_t surplus;
+	uint32_t cost;
 	uint32_t key;
-	int32_t surplus;
 	bool active;
 };
 
@@ -31,10 +34,10 @@ struct rr {
 	uint32_void_tbl *qs;	     /* Queues */
 	struct active_head active_q; /* LL of active queues */
 	struct rr_qn *next;	     /* Next queue in active list to pull from */
+	int64_t max_surplus;	     /* Max surplus in this round */
+	int64_t prev_max_surplus;    /* Max surplus in previous round */
 	uint32_t n_active;	     /* Length of active queue */
 	uint32_t round_remaining;    /* Number queues left in this round */
-	int32_t max_surplus;	     /* Max surplus in this round */
-	int32_t prev_max_surplus;    /* Max surplus in previous round */
 	bool gave_quantum;	     /* State for dequeue */
 };
 
@@ -42,15 +45,15 @@ struct rr*
 rr_init(void);
 
 void
-rr_destroy(struct rr* rr);
+rr_destroy(struct rr *rr);
 
 int
-rr_enqueue(struct rr* rr, uint32_t key, void* v);
+rr_enqueue(struct rr *rr, uint32_t key, void *v);
 
 void*
-rr_dequeue(struct rr* rr);
+rr_dequeue(struct rr *rr);
 
 void
-rr_complete(struct rr *rr, uint32_t key, int32_t cost);
+rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost);
 
 #endif /* RR_H */

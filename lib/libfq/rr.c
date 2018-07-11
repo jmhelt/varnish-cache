@@ -43,6 +43,12 @@ rr_destroy(struct rr *rr)
 			free(vn);
 		}
 
+		while (!VTAILQ_EMPTY(&qn->in_progress)) {
+			vn = VTAILQ_FIRST(&qn->in_progress);
+			VTAILQ_REMOVE(&qn->in_progress, vn, list);
+			free(vn);
+		}
+
 		free(qn);
 	}
 
@@ -59,8 +65,10 @@ rr_add_queue(struct rr *rr, uint32_t key)
 {
 	struct rr_qn *qn = malloc(sizeof(struct rr_qn));
 	VTAILQ_INIT(&qn->q);
+	VTAILQ_INIT(&qn->in_progress);
 	qn->key = key;
 	qn->surplus = 0;
+	qn->cost = 1;
 	qn->active = false;
 
 	if (!uint32_void_tbl_insert(rr->qs, &key, (void**)&qn)) {
@@ -81,7 +89,7 @@ rr_enqueue(struct rr *rr, uint32_t key, void *v)
 		qn = rr_add_queue(rr, key);
 
 	/* Insert value */
-	vn = malloc(sizeof(struct rr_vn));
+	vn = calloc(1, sizeof(struct rr_vn));
 	vn->v = v;
 	VTAILQ_INSERT_TAIL(&qn->q, vn, list);
 
@@ -95,66 +103,8 @@ rr_enqueue(struct rr *rr, uint32_t key, void *v)
 	return 0;
 }
 
-int32_t
-rr_get_cost(uint32_t key)
-{
-	int32_t cost;
-
-	switch (key) {
-        case 1: // ('noop', '/index.html')
-		cost = 14;
-		break;
-        case 2: // ('embed-json-noload', '/index-embed-json-001.html')
-		cost = 90;
-		break;
-	case 3: // ('embed-json-noload', '/index-embed-json-005.html')
-		cost = 401;
-		break;
-	case 4: // ('geoip2', '/index.html')
-		cost = 15;
-		break;
-	case 5: // ('jwt', '/index.html')
-		cost = 19; // jwt
-		break;
-	case 6: // ('syslog', '/index.html')
-		cost = 16;
-		break;
-	case 7: // ('noop', '/rand/1k.txt')
-		cost = 5;
-		break;
- 	case 8: // ('noop', '/rand/20k.txt')
-		cost = 17;
-		break;
- 	case 9: // ('noop', '/rand/40k.txt')
-		cost = 34;
-		break;
- 	case 10: // ('spin-1e4', 'index.html')
-		cost = 17;
-		break;
- 	case 11: // ('spin-1e5', 'index.html')
-		cost = 40;
-		break;
- 	case 12: // ('spin-1e6', 'index.html')
-		cost = 273;
-		break;
- 	case 13: // ('spin-1e7', 'index.html')
-		cost = 2600;
-		break;
- 	case 14: // ('spin-1e8', 'index.html')
-		cost = 25876;
-		break;
- 	case 15: // ('spin-1e9', 'index.html')
-		cost = 258635;
-		break;
-	default:
-		cost = 1;
-	}
-
-	return cost;
-}
-
-static inline int32_t
-max(int32_t x, int32_t y)
+static inline int64_t
+int64_max(int64_t x, int64_t y)
 {
 	if (x > y)
 		return x;
@@ -167,13 +117,12 @@ rr_dequeue(struct rr *rr)
 {
 	uint32_t round_remaining = rr->round_remaining;
 	uint32_t n_active = rr->n_active;
-	int32_t max_surplus = rr->max_surplus;
-	int32_t prev_max_surplus = rr->prev_max_surplus;
+	int64_t max_surplus = rr->max_surplus;
+	int64_t prev_max_surplus = rr->prev_max_surplus;
 	bool gave_quantum = rr->gave_quantum;
 	struct rr_qn *qn = rr->next;
 	struct rr_qn *tmp;
-	uint32_t key;
-	int32_t cost;
+	int64_t cost;
 	struct rr_vn *vn = NULL;
 	void *v = NULL;
 
@@ -202,9 +151,9 @@ rr_dequeue(struct rr *rr)
 
 		if (qn->surplus >= 0) {
 			/* Already in surplus for this queue. Move on. */
-			gave_quantum = false;
-			max_surplus = max(qn->surplus, max_surplus);
+			max_surplus = int64_max(qn->surplus, max_surplus);
 			qn = VTAILQ_NEXT(qn, list);
+			gave_quantum = false;
 			round_remaining -= 1;
 		} else {
 			assert(!VTAILQ_EMPTY(&qn->q));
@@ -213,13 +162,12 @@ rr_dequeue(struct rr *rr)
 		}
 	}
 
-	key = qn->key;
-	cost = rr_get_cost(key);
-	qn->surplus += cost;
-	max_surplus = max(qn->surplus, max_surplus);
+	cost = qn->cost;
+	qn->surplus += (int64_t)cost;
 
 	v = vn->v;
-	free(vn);
+	vn->amount_charged = cost;
+	VTAILQ_INSERT_TAIL(&qn->in_progress, vn, list);
 
 	/* If queue is no longer active */
 	if (VTAILQ_EMPTY(&qn->q)) {
@@ -251,13 +199,36 @@ rr_dequeue(struct rr *rr)
 }
 
 void
-rr_complete(struct rr *rr, uint32_t key, int32_t cost)
+rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost)
 {
 	struct rr_qn *qn;
+	struct rr_vn *vn;
+	uint32_t amount_charged;
 
 	/* Find or create queue */
 	if (!uint32_void_tbl_find(rr->qs, &key, (void**)&qn))
-		assert(false);	/* TODO: Handle error */
+		return;
 
-	return;
+	/* Find in-progress node to get amount charged */
+	VTAILQ_FOREACH(vn, &qn->in_progress, list) {
+		if (vn->v == v)
+			break;
+	};
+
+	if (!vn)
+		return;
+
+	/* Update cost estimate */
+	qn->cost = int64_max(0.9 * qn->cost, cost);
+
+	/* Update surplus based on true cost */
+	assert(vn->amount_charged != 0);
+	if (qn->active) {
+		amount_charged = vn->amount_charged;
+		qn->surplus += (int64_t)cost - amount_charged;
+		rr->max_surplus = int64_max(qn->surplus, rr->max_surplus);
+	}
+
+	VTAILQ_REMOVE(&qn->in_progress, vn, list);
+	free(vn);
 }

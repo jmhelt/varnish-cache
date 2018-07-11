@@ -5,7 +5,8 @@
 
 #include "rr.h"
 
-void rr_test_enqueue1(void)
+void
+rr_test_enqueue1(void)
 {
 	uint32_t key = 1;
 	void *v = (void *)1;
@@ -18,7 +19,8 @@ void rr_test_enqueue1(void)
 	rr_destroy(rr);
 }
 
-void rr_test_dequeue1(void)
+void
+rr_test_dequeue1(void)
 {
 	struct rr *rr = rr_init();
 
@@ -29,7 +31,8 @@ void rr_test_dequeue1(void)
 	rr_destroy(rr);
 }
 
-void rr_test_enqueue_dequeue1(void)
+void
+rr_test_enqueue_dequeue1(void)
 {
 	struct rr *rr = rr_init();
 	uint32_t key = 1;
@@ -45,7 +48,8 @@ void rr_test_enqueue_dequeue1(void)
 	rr_destroy(rr);
 }
 
-void rr_test_enqueue_dequeue2(void)
+void
+rr_test_enqueue_dequeue2(void)
 {
 	struct rr *rr = rr_init();
 	uint32_t key1 = 1;
@@ -66,7 +70,8 @@ void rr_test_enqueue_dequeue2(void)
 	rr_destroy(rr);
 }
 
-void rr_test_enqueue_dequeue4(void)
+void
+rr_test_enqueue_dequeue4(void)
 {
 	struct rr *rr = rr_init();
 	uint32_t key1 = 1;
@@ -98,6 +103,121 @@ void rr_test_enqueue_dequeue4(void)
 	rr_destroy(rr);
 }
 
+void
+rr_test_example_from_paper(void)
+{
+	struct rr *rr = rr_init();
+	uint32_t key1 = 1;
+	uint32_t key2 = 2;
+	uint32_t key3 = 3;
+	void *ret;
+	void *v11 = (void *)11;
+	void *v12 = (void *)12;
+	void *v13 = (void *)13;
+	void *v14 = (void *)14;
+
+	void *v21 = (void *)21;
+	void *v22 = (void *)22;
+	void *v23 = (void *)23;
+	void *v24 = (void *)24;
+	void *v25 = (void *)25;
+
+	void *v31 = (void *)31;
+	void *v32 = (void *)32;
+	void *v33 = (void *)33;
+	void *v34 = (void *)34;
+	void *v35 = (void *)35;
+
+	rr_enqueue(rr, key1, v11);
+	rr_enqueue(rr, key1, v12);
+	rr_enqueue(rr, key1, v13);
+	rr_enqueue(rr, key1, v14);
+
+	rr_enqueue(rr, key2, v21);
+	rr_enqueue(rr, key2, v22);
+	rr_enqueue(rr, key2, v23);
+	rr_enqueue(rr, key2, v24);
+	rr_enqueue(rr, key2, v25);
+
+	rr_enqueue(rr, key3, v31);
+	rr_enqueue(rr, key3, v32);
+	rr_enqueue(rr, key3, v33);
+	rr_enqueue(rr, key3, v34);
+	rr_enqueue(rr, key3, v35);
+
+	/* Req 1.1: cost 32 */
+	ret = rr_dequeue(rr);
+	assert(ret == v11);
+	rr_complete(rr, key1, ret, 32);
+
+	/* Req 2.1: cost 16 */
+	ret = rr_dequeue(rr);
+	assert(ret == v21);
+	rr_complete(rr, key2, ret, 16);
+
+	/* Req 3.1: cost 24 */
+	ret = rr_dequeue(rr);
+	assert(ret == v31);
+	rr_complete(rr, key3, ret, 24);
+
+	/* Req 1.2: cost 8 */
+	ret = rr_dequeue(rr);
+	assert(ret == v12);
+	rr_complete(rr, key1, ret, 8);
+
+	/* Req 2.2: cost 8 */
+	ret = rr_dequeue(rr);
+	assert(ret == v22);
+	rr_complete(rr, key2, ret, 8);
+
+	/* Req 2.3: cost 8 */
+	ret = rr_dequeue(rr);
+	assert(ret == v23);
+	rr_complete(rr, key2, ret, 8);
+
+	/* Req 2.4: cost 24 */
+	ret = rr_dequeue(rr);
+	assert(ret == v24);
+	rr_complete(rr, key2, ret, 24);
+
+	/* Req 3.2: cost 4 */
+	ret = rr_dequeue(rr);
+	assert(ret == v32);
+	rr_complete(rr, key3, ret, 4);
+
+	/* Req 3.3: cost 8 */
+	ret = rr_dequeue(rr);
+	assert(ret == v33);
+	rr_complete(rr, key3, ret, 8);
+
+	/* Req 1.3: cost 12 */
+	ret = rr_dequeue(rr);
+	assert(ret == v13);
+	rr_complete(rr, key1, ret, 12);
+
+	/* Req 1.4: cost 16 */
+	ret = rr_dequeue(rr);
+	assert(ret == v14);
+	rr_complete(rr, key1, ret, 16);
+
+	/* Req 2.5: cost 4 */
+	ret = rr_dequeue(rr);
+	assert(ret == v25);
+	rr_complete(rr, key2, ret, 4);
+
+	/* Req 3.4: cost 20 */
+	ret = rr_dequeue(rr);
+	assert(ret == v34);
+	rr_complete(rr, key3, ret, 20);
+
+	/* Req 3.5: cost 32 */
+	ret = rr_dequeue(rr);
+	assert(ret == v35);
+	rr_complete(rr, key3, ret, 32);
+
+	rr_destroy(rr);
+}
+
 int main(int argc, char **argv)
 {
 	rr_test_enqueue1();
@@ -105,6 +225,7 @@ int main(int argc, char **argv)
 	rr_test_enqueue_dequeue1();
 	rr_test_enqueue_dequeue2();
 	rr_test_enqueue_dequeue4();
+	rr_test_example_from_paper();
 
 	return 0;
 }

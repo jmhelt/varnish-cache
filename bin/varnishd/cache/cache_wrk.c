@@ -306,29 +306,6 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	return (retval);
 }
 
-int
-Pool_Task_Enqueue(struct pool *pp, struct req *req)
-{
-	struct pool_task *task = &req->task;
-	uint32_t key = req->cust_id;
-
-	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
-	AN(task);
-	AN(task->func);
-	AN(task->priv);
-
-	Lck_Lock(&pp->mtx);
-
-	/* Enqueue the task */
-	AZ(rr_enqueue(pp->fair_queue, key, (void *)task));
-	pp->nqueued++;
-	pp->lqueue++;
-
-	Lck_Unlock(&pp->mtx);
-
-	return (0);
-}
-
 /*--------------------------------------------------------------------
  * Empty function used as a pointer value for the thread exit condition.
  */
