@@ -320,7 +320,7 @@ Pool_Task_Enqueue(struct pool *pp, struct req *req)
 	Lck_Lock(&pp->mtx);
 
 	/* Enqueue the task */
-	AZ(drr_enqueue(pp->fair_queue, key, (void *)task));
+	AZ(rr_enqueue(pp->fair_queue, key, (void *)task));
 	pp->nqueued++;
 	pp->lqueue++;
 
@@ -377,7 +377,7 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			tp = (struct pool_task*)drr_dequeue(pp->fair_queue);
+			tp = (struct pool_task*)rr_dequeue(pp->fair_queue);
 			if (tp != NULL)
 				pp->lqueue--;
 		}

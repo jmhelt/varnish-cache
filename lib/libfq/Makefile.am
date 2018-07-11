@@ -1,19 +1,19 @@
-noinst_LIBRARIES = libdrr.a
+noinst_LIBRARIES = libfq.a
 
 AM_CPPFLAGS = \
 	-I$(top_builddir)/include \
 	-I$(top_srcdir)/include
 
-libdrr_a_SOURCES = \
-	drr.c
+libfq_a_SOURCES = \
+	rr.c
 
-check_PROGRAMS = drr_test
+check_PROGRAMS = rr_test
 
 TESTS = ${check_PROGRAMS}
 
-drr_test_SOURCES = drr_test.c
+rr_test_SOURCES = rr_test.c
 
-drr_test_LDADD = \
-	libdrr.a \
+rr_test_LDADD = \
+	libfq.a \
 	$(top_builddir)/lib/libcuckoo/libcuckoo.la
 

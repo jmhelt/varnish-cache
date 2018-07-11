@@ -2,7 +2,7 @@
 
 SUBDIRS = \
 	libcuckoo \
-	libdrr \
+	libfq \
 	libvarnish \
 	libvarnishapi \
 	libvcc \

@@ -156,7 +156,7 @@ pool_mkpool(unsigned pool_no)
 
 	VTAILQ_INIT(&pp->idle_queue);
 	VTAILQ_INIT(&pp->poolsocks);
-	pp->fair_queue = drr_init(500);
+	pp->fair_queue = rr_init();
 	for (i = 0; i < TASK_QUEUE_END; i++)
 		VTAILQ_INIT(&pp->queues[i]);
 	AZ(pthread_cond_init(&pp->herder_cond, NULL));
@@ -233,7 +233,7 @@ pool_poolherder(void *priv)
 			VTAILQ_REMOVE(&pools, ppx, list);
 			AZ(pthread_join(ppx->herder_thr, &rvp));
 			AZ(pthread_cond_destroy(&ppx->herder_cond));
-			drr_destroy(ppx->fair_queue);
+			rr_destroy(ppx->fair_queue);
 			free(ppx->a_stat);
 			free(ppx->b_stat);
 			SES_DestroyPool(ppx);
