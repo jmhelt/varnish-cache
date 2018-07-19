@@ -171,7 +171,9 @@ rr_dequeue(struct rr *rr)
 
 	/* If queue is no longer active */
 	if (VTAILQ_EMPTY(&qn->q)) {
+
 		/* Remove any existing surplus */
+		max_surplus = int64_max(qn->surplus, max_surplus);
 		qn->surplus = 0;
 		qn->active = false;
 
@@ -185,6 +187,7 @@ rr_dequeue(struct rr *rr)
 		qn = tmp;
 		gave_quantum = false;
 		n_active -= 1;
+		round_remaining -= 1;
 	}
 
 	/* Store state for next call */
