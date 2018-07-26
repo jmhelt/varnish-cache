@@ -169,8 +169,8 @@ Req_Release(struct req *req)
 	AZ(req->acct.foo);
 #include "tbl/acct_fields_req.h"
 
-	memset(req->perf, 0, sizeof(req->perf));
-
+	memset(req->perf_start, 0, sizeof(req->perf_start));
+	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 	AZ(req->vcl);
 	if (req->vsl->wid)
 		VSL_End(req->vsl);
@@ -233,7 +233,8 @@ Req_Cleanup(struct sess *sp, struct worker *wrk, struct req *req)
 	req->t_req = NAN;
 	req->req_body_status = REQ_BODY_INIT;
 
-	memset(req->perf, 0, sizeof(req->perf));
+	memset(req->perf_start, 0, sizeof(req->perf_start));
+	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 
 	req->hash_always_miss = 0;
 	req->hash_ignore_busy = 0;

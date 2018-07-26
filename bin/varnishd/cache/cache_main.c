@@ -43,7 +43,10 @@
 #  include <pthread_np.h>
 #endif
 
-#include <papi.h>
+#include <linux/perf_event.h>
+#include <asm/unistd.h>
+#include <string.h>
+#include <sys/ioctl.h>
 #include <pthread.h>
 
 #include "common/heritage.h"
@@ -55,6 +58,7 @@
 
 
 volatile struct params		*cache_param;
+volatile int 			resource_fds[N_COUNTERS];
 
 /*--------------------------------------------------------------------
  * Per thread storage for the session currently being processed by
@@ -292,6 +296,65 @@ child_sigmagic(size_t altstksz)
 	(void)sigaction(SIGSEGV, &sa, NULL);
 }
 
+
+static long
+perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
+		int cpu, int group_fd, unsigned long flags)
+{
+	int ret;
+
+	ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
+		      group_fd, flags);
+	return ret;
+}
+
+void
+start_monitoring(void)
+{
+	int fd;
+	int leader;
+	int i;
+	struct perf_event_attr pe;
+
+	memset(&pe, 0, sizeof(struct perf_event_attr));
+	pe.type = PERF_TYPE_HARDWARE;
+	pe.size = sizeof(struct perf_event_attr);
+	pe.disabled = 1;
+	pe.inherit = 1;
+	pe.inherit_stat = 1;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		if (i == 0)
+			leader = -1;
+		else
+			leader = resource_fds[0];
+
+		pe.config = events[i];
+		fd = perf_event_open(&pe, 0, -1, leader, 0);
+		if (fd == -1) {
+			fprintf(stderr, "Error opening leader %llx\n", pe.config);
+			exit(EXIT_FAILURE);
+		}
+
+		ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+		ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+		resource_fds[i] = fd;
+	}
+}
+
+void
+stop_monitoring(void)
+{
+	int i;
+	int fd;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		fd = resource_fds[i];
+		ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+		close(fd);
+	}
+}
+
 /*=====================================================================
  * Run the child process
  */
@@ -299,14 +362,7 @@ child_sigmagic(size_t altstksz)
 void
 child_main(int sigmagic, size_t altstksz)
 {
-	int err;
-	if ((err = PAPI_library_init(PAPI_VER_CURRENT)) != PAPI_VER_CURRENT) {
-		VSL(SLT_Debug, 0, "PAPI init failed %d: %s\n", err, PAPI_strerror(err));
-		exit(1);
-	}
-
-	AZ(PAPI_thread_init(pthread_self));
-
+	start_monitoring();
 	if (sigmagic)
 		child_sigmagic(altstksz);
 	(void)signal(SIGINT, SIG_DFL);
@@ -380,6 +436,8 @@ child_main(int sigmagic, size_t altstksz)
 	VCA_Shutdown();
 	BAN_Shutdown();
 	STV_close();
+
+	stop_monitoring();
 
 	printf("Child dies\n");
 }

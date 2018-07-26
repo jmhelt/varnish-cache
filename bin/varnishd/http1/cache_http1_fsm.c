@@ -382,6 +382,7 @@ req_enqueue(struct pool *pp, struct req *req)
 	Lck_Lock(&pp->mtx);
 
 	/* Enqueue the task */
+	//VTAILQ_INSERT_TAIL(&pp->queues[TASK_QUEUE_REQ], task, list);
 	AZ(rr_enqueue(pp->fair_queue, key, (void *)task));
 	pp->nqueued++;
 	pp->lqueue++;
@@ -419,8 +420,8 @@ static uint32_t
 req_cost(struct req *req)
 {
 	int i;
-	long long *perf = req->perf;
-	long long p;
+	uint64_t *perf = req->perf_accum;
+	uint64_t p;
 	uint32_t max_cost = 0;
 	uint32_t cost = 0;
 	struct acct_req *ar = &req->acct;
@@ -429,7 +430,7 @@ req_cost(struct req *req)
 		p = perf[i];
 
 		switch (events[i]) {
-		case PAPI_TOT_INS:
+		case PERF_COUNT_HW_INSTRUCTIONS:
 			cost = (uint32_t)(((double)p / (N_CORES * CPU_HZ))
 					  * IN_MICROS);
 			break;
@@ -488,46 +489,63 @@ get_cust_id(const struct req *req)
 	return id;
 }
 
-void
-PAPI_handle_error(int retval)
-{
-     printf("PAPI error %d: %s\n", retval, PAPI_strerror(retval));
-     exit(EXIT_FAILURE);
-}
-
-static inline void
+static void
 print_perf_ctrs(struct req *req)
 {
 	int i;
 	struct vsl_log *vsl = req->vsl;
-	long long *perf = req->perf;
-	char out[PAPI_MAX_STR_LEN];
 
 	for (i = 0; i < N_COUNTERS; i++) {
-		PAPI_event_code_to_name(events[i], out);
-		VSLb(vsl, SLT_VCL_perf, "REQ,%s,%lld", out, perf[i]);
+		VSLb(vsl, SLT_VCL_perf, "REQ,%d,%ld", i, req->perf_accum[i]);
 	}
 }
 
-static inline void
-start_perf_ctrs(struct worker *wrk, struct req *req)
+void handle_error(char *msg)
 {
-	int ret;
-	if ((ret = PAPI_start(wrk->eventset)) != PAPI_OK)
-		PAPI_handle_error(ret);
+	perror(msg);
+	exit(EXIT_FAILURE);
 }
 
-static inline void
+#define RBUF_LEN 4
+
+static void
+start_perf_ctrs(struct worker *wrk, struct req *req)
+{
+	uint64_t buf[RBUF_LEN];
+	int i;
+	int fd;
+	ssize_t n;
+	uint64_t value;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		fd = resource_fds[i];
+		n = read(fd, buf, sizeof(buf));
+		if (n == -1)
+			handle_error("read");
+
+		value = buf[0];
+		req->perf_start[i] = value;
+	}
+}
+
+static void
 accum_perf_ctrs(struct worker *wrk, struct req *req)
 {
-	long long perf[N_COUNTERS];
-	int i, ret;
+	uint64_t buf[RBUF_LEN];
+	int i;
+	int fd;
+	ssize_t n;
+	uint64_t value;
 
-	if ((ret = PAPI_stop(wrk->eventset, perf)) != PAPI_OK)
-		PAPI_handle_error(ret);
+	for (i = 0; i < N_COUNTERS; i++) {
+		fd = resource_fds[i];
+		n = read(fd, buf, sizeof(buf));
+		if (n == -1)
+			handle_error("read");
 
-	for (i = 0; i < N_COUNTERS; i++)
-		req->perf[i] += perf[i];
+		value = buf[0];
+		req->perf_accum[i] = value - req->perf_start[i];
+	}
 }
 
 static void
@@ -536,7 +554,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 	enum htc_status_e hs;
 	struct sess *sp;
 	const char *st;
-	int i, ret, state;
+	int i;
 
 	CHECK_OBJ_NOTNULL(wrk, WORKER_MAGIC);
 	CHECK_OBJ_NOTNULL(req, REQ_MAGIC);
@@ -557,13 +575,9 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			SES_Close(sp, SC_TX_ERROR);
 		WS_Release(req->htc->ws, 0);
 
-		if ((ret = PAPI_state(wrk->eventset, &state)) != PAPI_OK)
-			PAPI_handle_error(ret);
-		if (state == PAPI_RUNNING)
-			accum_perf_ctrs(wrk, req);
-
+		accum_perf_ctrs(wrk, req);
 		req_complete(wrk->pool, req);
-		print_perf_ctrs(req);
+		//print_perf_ctrs(req);
 		AN(http1_req_cleanup(sp, wrk, req));
 		return;
 	}
@@ -573,9 +587,6 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 	while (1) {
 		st = http1_getstate(sp);
 		if (st == H1NEWREQ) {
-			for (i = 0; i < N_COUNTERS; i++)
-				AZ(req->perf[i]);
-
 			start_perf_ctrs(wrk, req);
 			CHECK_OBJ_NOTNULL(req->transport, TRANSPORT_MAGIC);
 			assert(isnan(req->t_prev));
@@ -595,7 +606,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 				    req->htc->rxbuf_e - req->htc->rxbuf_b;
 				accum_perf_ctrs(wrk, req);
 				req_complete(wrk->pool, req);
-				print_perf_ctrs(req);
+				//print_perf_ctrs(req);
 				Req_AcctLogCharge(wrk->stats, req);
 				Req_Release(req);
 				switch (hs) {
@@ -619,7 +630,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 				wrk->stats->sess_herd++;
 				accum_perf_ctrs(wrk, req);
 				req_complete(wrk->pool, req);
-				print_perf_ctrs(req);
+				//print_perf_ctrs(req);
 				Req_Release(req);
 				SES_Wait(sp, &HTTP1_transport);
 				return;
@@ -692,7 +703,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			if (VTCP_check_hup(sp->fd)) {
 				accum_perf_ctrs(wrk, req);
 				req_complete(wrk->pool, req);
-				print_perf_ctrs(req);
+				//print_perf_ctrs(req);
 				http1_cleanup_waiting(wrk, req, SC_REM_CLOSE);
 				return;
 			}
