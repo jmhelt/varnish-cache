@@ -33,7 +33,8 @@
 
 #include <errno.h>
 #include <stdlib.h>
-#include <papi.h>
+#include <stdio.h>
+#include <unistd.h>
 
 #include "cache_varnishd.h"
 #include "cache_pool.h"
@@ -95,27 +96,6 @@ WRK_BgThread(pthread_t *thr, const char *name, bgthread_t *func, void *priv)
 /*--------------------------------------------------------------------*/
 
 
-static inline int
-create_eventset(void)
-{
-	int eventset = PAPI_NULL;
-	int i;
-
-	AZ(PAPI_create_eventset(&eventset));
-	for (i = 0; i < N_COUNTERS; i++) {
-		AZ(PAPI_add_event(eventset, events[i]));
-	}
-
-	return eventset;
-}
-
-static inline void
-destroy_eventset(int eventset)
-{
-	AZ(PAPI_cleanup_eventset(eventset));
-	AZ(PAPI_destroy_eventset(&eventset));
-}
-
 static void
 WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 {
@@ -127,8 +107,6 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	AN(stacksize);
 	AN(thread_workspace);
 
-	AZ(PAPI_register_thread());
-
 	THR_SetName("cache-worker");
 	w = &ww;
 	INIT_OBJ(w, WORKER_MAGIC);
@@ -136,24 +114,19 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	memset(&ds, 0, sizeof ds);
 	w->stats = &ds;
 	AZ(pthread_cond_init(&w->cond, NULL));
-	w->eventset = create_eventset();
 
 	WS_Init(w->aws, "wrk", ws, thread_workspace);
 
 	VSL(SLT_WorkThread, 0, "%p start", w);
-
 	Pool_Work_Thread(qp, w);
 	AZ(w->pool);
 
 	VSL(SLT_WorkThread, 0, "%p end", w);
 	if (w->vcl != NULL)
 		VCL_Rel(&w->vcl);
-	destroy_eventset(w->eventset);
 	AZ(pthread_cond_destroy(&w->cond));
 	HSH_Cleanup(w);
 	Pool_Sumstat(w);
-
-	AZ(PAPI_unregister_thread());
 }
 
 /*--------------------------------------------------------------------

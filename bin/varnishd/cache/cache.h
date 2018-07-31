@@ -37,10 +37,10 @@
 #endif
 
 #include <math.h>
-#include <papi.h>
 #include <pthread.h>
 #include <stdarg.h>
 #include <sys/types.h>
+#include <linux/perf_event.h>
 
 #include "vdef.h"
 #include "vrt.h"
@@ -435,9 +435,8 @@ struct busyobj {
 
 /*--------------------------------------------------------------------*/
 
-#define N_COUNTERS 4
-static const int events[N_COUNTERS] = {PAPI_TOT_INS, PAPI_TOT_CYC, PAPI_L2_TCM,
-				       PAPI_L3_TCM};
+#define N_COUNTERS 1
+static const enum perf_hw_id events[N_COUNTERS] = {PERF_COUNT_HW_INSTRUCTIONS};
 
 struct req {
 	unsigned		magic;
@@ -527,7 +526,8 @@ struct req {
 
 	/* Temporary accounting */
 	struct acct_req		acct;
-	long long		perf[N_COUNTERS];
+	uint64_t		perf_start[N_COUNTERS];
+	uint64_t		perf_accum[N_COUNTERS];
 
 	struct vrt_privs	privs[1];
 };
