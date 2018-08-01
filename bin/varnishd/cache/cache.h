@@ -232,6 +232,7 @@ enum task_prio {
 	(prio == TASK_QUEUE_REQ || prio == TASK_QUEUE_STR)
 
 /*--------------------------------------------------------------------*/
+#define N_COUNTERS 1
 
 struct worker {
 	unsigned		magic;
@@ -262,7 +263,7 @@ struct worker {
 	unsigned		seen_methods;
 	unsigned		handling;
 
-	int			eventset;
+	int			resource_fds[N_COUNTERS];
 };
 
 /* Stored object -----------------------------------------------------
@@ -435,7 +436,6 @@ struct busyobj {
 
 /*--------------------------------------------------------------------*/
 
-#define N_COUNTERS 1
 static const enum perf_hw_id events[N_COUNTERS] = {PERF_COUNT_HW_INSTRUCTIONS};
 
 struct req {

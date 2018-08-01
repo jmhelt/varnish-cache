@@ -84,7 +84,6 @@ typedef enum htc_status_e htc_complete_f(struct http_conn *);
 /* -------------------------------------------------------------------*/
 
 extern volatile struct params * cache_param;
-extern volatile int resource_fds[N_COUNTERS];
 
 /* Prototypes etc ----------------------------------------------------*/
 

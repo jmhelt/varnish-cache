@@ -515,6 +515,7 @@ start_perf_ctrs(struct worker *wrk, struct req *req)
 	int i;
 	int fd;
 	ssize_t n;
+	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
 	for (i = 0; i < N_COUNTERS; i++) {
@@ -535,6 +536,7 @@ accum_perf_ctrs(struct worker *wrk, struct req *req)
 	int i;
 	int fd;
 	ssize_t n;
+	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
 	for (i = 0; i < N_COUNTERS; i++) {
