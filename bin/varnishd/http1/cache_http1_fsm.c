@@ -518,14 +518,16 @@ start_perf_ctrs(struct worker *wrk, struct req *req)
 	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		n = read(fd, buf, sizeof(buf));
-		if (n == -1)
-			handle_error("read");
+	if (req->profile) {
+		for (i = 0; i < N_COUNTERS; i++) {
+			fd = resource_fds[i];
+			n = read(fd, buf, sizeof(buf));
+			if (n == -1)
+				handle_error("read");
 
-		value = buf[0];
-		req->perf_start[i] = value;
+			value = buf[0];
+			req->perf_start[i] = value;
+		}
 	}
 }
 
@@ -548,14 +550,16 @@ accum_perf_ctrs(struct worker *wrk, struct req *req)
 	ssize_t n;
 	uint64_t value;
 
-	fd = wrk->resource_fds[0];
-	n = read(fd, &buf, sizeof(struct read_format));
-	if (n == -1)
-		handle_error("read");
+	if (req->profile) {
+		fd = wrk->resource_fds[0];
+		n = read(fd, &buf, sizeof(struct read_format));
+		if (n == -1)
+			handle_error("read");
 
-	for (i = 0; i < N_COUNTERS; i++) {
-		value = buf.values[i].value;
-		req->perf_accum[i] = value - req->perf_start[i];
+		for (i = 0; i < N_COUNTERS; i++) {
+			value = buf.values[i].value;
+			req->perf_accum[i] = value - req->perf_start[i];
+		}
 	}
 }
 
