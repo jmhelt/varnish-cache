@@ -123,8 +123,7 @@ start_monitoring(struct worker *wrk)
 	pe.type = PERF_TYPE_HARDWARE;
 	pe.size = sizeof(struct perf_event_attr);
 	pe.disabled = 1;
-	pe.inherit = 1;
-	pe.inherit_stat = 1;
+	pe.read_format = PERF_FORMAT_GROUP;
 
 	for (i = 0; i < N_COUNTERS; i++) {
 		if (i == 0)

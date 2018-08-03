@@ -529,23 +529,32 @@ start_perf_ctrs(struct worker *wrk, struct req *req)
 	}
 }
 
+struct read_format {
+	uint64_t nr;            /* The number of events */
+	uint64_t time_enabled;  /* if PERF_FORMAT_TOTAL_TIME_ENABLED */
+	uint64_t time_running;  /* if PERF_FORMAT_TOTAL_TIME_RUNNING */
+	struct {
+		uint64_t value;     /* The value of the event */
+		uint64_t id;        /* if PERF_FORMAT_ID */
+	} values[N_COUNTERS];
+};
+
 static void
 accum_perf_ctrs(struct worker *wrk, struct req *req)
 {
-	uint64_t buf[RBUF_LEN];
+	struct read_format buf;
 	int i;
 	int fd;
 	ssize_t n;
-	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		n = read(fd, buf, sizeof(buf));
-		if (n == -1)
-			handle_error("read");
+	fd = wrk->resource_fds[0];
+	n = read(fd, &buf, sizeof(struct read_format));
+	if (n == -1)
+		handle_error("read");
 
-		value = buf[0];
+	for (i = 0; i < N_COUNTERS; i++) {
+		value = buf.values[i].value;
 		req->perf_accum[i] = value - req->perf_start[i];
 	}
 }
