@@ -452,20 +452,24 @@ req_cost(struct req *req)
 	return max_cost;
 }
 
-int
+void
 req_complete(struct pool *pp, struct req *req)
 {
-	struct pool_task *task = &req->task;
-	uint32_t key = req->cust_id;
-	uint32_t cost = req_cost(req);
+	uint32_t cost;
+	uint32_t key;
+	struct pool_task *task;
 
-	AN(task);
+	if (req->profile) {
+		task = &req->task;
+		key = req->cust_id;
+		cost = req_cost(req);
 
-	Lck_Lock(&pp->mtx);
-	rr_complete(pp->fair_queue, key, (void *)task, cost);
-	Lck_Unlock(&pp->mtx);
+		AN(task);
 
-	return (0);
+		Lck_Lock(&pp->mtx);
+		rr_complete(pp->fair_queue, key, (void *)task, cost);
+		Lck_Unlock(&pp->mtx);
+	}
 }
 
 /* TODO: Real hash function */
