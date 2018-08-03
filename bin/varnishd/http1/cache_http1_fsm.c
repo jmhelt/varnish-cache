@@ -373,7 +373,7 @@ int
 req_enqueue(struct pool *pp, struct req *req)
 {
 	struct pool_task *task = &req->task;
-	//uint32_t key = req->cust_id;
+	uint32_t key = req->cust_id;
 
 	AN(task);
 	AN(task->func);
@@ -382,8 +382,8 @@ req_enqueue(struct pool *pp, struct req *req)
 	Lck_Lock(&pp->mtx);
 
 	/* Enqueue the task */
-	VTAILQ_INSERT_TAIL(&pp->queues[TASK_QUEUE_REQ], task, list);
-	//AZ(rr_enqueue(pp->fair_queue, key, (void *)task));
+	//VTAILQ_INSERT_TAIL(&pp->queues[TASK_QUEUE_REQ], task, list);
+	AZ(rr_enqueue(pp->fair_queue, key, (void *)task));
 	pp->nqueued++;
 	pp->lqueue++;
 
@@ -392,81 +392,81 @@ req_enqueue(struct pool *pp, struct req *req)
 	return (0);
 }
 
-//static inline uint32_t
-//uint32_max(uint32_t x, uint32_t y)
-//{
-//	if (x > y)
-//		return x;
-//	else
-//		return y;
-//}
-//
-//static const uint8_t N_CORES = 8;
-//static const uint64_t CPU_HZ = 2.9 * 1e9;
-//static const uint32_t IN_MICROS = 1e6;
-//static const uint64_t NIC_BPS = 10 * 1e9;
-//static const uint16_t MTU = 1500;
-//static const uint16_t HEADERS_BYTES = 64;
-//
-//static inline uint32_t
-//bytes_to_cost(uint64_t bytes)
-//{
-//	double b = (double)bytes;
-//	b += (b / (MTU - HEADERS_BYTES) + 1) * HEADERS_BYTES;
-//	return (uint32_t)((b * 8) / NIC_BPS) * IN_MICROS;
-//}
-//
-//static uint32_t
-//req_cost(struct req *req)
-//{
-//	int i;
-//	uint64_t *perf = req->perf_accum;
-//	uint64_t p;
-//	uint32_t max_cost = 0;
-//	uint32_t cost = 0;
-//	struct acct_req *ar = &req->acct;
-//
-//	for (i = 0; i < N_COUNTERS; i++) {
-//		p = perf[i];
-//
-//		switch (events[i]) {
-//		case PERF_COUNT_HW_INSTRUCTIONS:
-//			cost = (uint32_t)(((double)p / (N_CORES * CPU_HZ))
-//					  * IN_MICROS);
-//			break;
-//		default:
-//			continue;
-//		};
-//
-//		max_cost = uint32_max(max_cost, cost);
-//	}
-//
-//	cost = bytes_to_cost(ar->req_hdrbytes + ar->req_bodybytes);
-//	max_cost = uint32_max(max_cost, cost);
-//
-//	cost = bytes_to_cost(ar->resp_hdrbytes + ar->resp_bodybytes);
-//	max_cost = uint32_max(max_cost, cost);
-//
-//	/* TODO: Add backend req and resp costs */
-//
-//	return max_cost;
-//}
-//
-//int
-//req_complete(struct pool *pp, struct req *req)
-//{
-//	struct pool_task *task = &req->task;
-//	uint32_t key = req->cust_id;
-//	uint32_t cost = req_cost(req);
-//
-//	AN(task);
-//
-//	Lck_Lock(&pp->mtx);
-//	rr_complete(pp->fair_queue, key, (void *)task, cost);
-//	Lck_Unlock(&pp->mtx);
-//
-//	return (0);
-//}
+static inline uint32_t
+uint32_max(uint32_t x, uint32_t y)
+{
+	if (x > y)
+		return x;
+	else
+		return y;
+}
+
+static const uint8_t N_CORES = 8;
+static const uint64_t CPU_HZ = 2.9 * 1e9;
+static const uint32_t IN_MICROS = 1e6;
+static const uint64_t NIC_BPS = 10 * 1e9;
+static const uint16_t MTU = 1500;
+static const uint16_t HEADERS_BYTES = 64;
+
+static inline uint32_t
+bytes_to_cost(uint64_t bytes)
+{
+	double b = (double)bytes;
+	b += (b / (MTU - HEADERS_BYTES) + 1) * HEADERS_BYTES;
+	return (uint32_t)((b * 8) / NIC_BPS) * IN_MICROS;
+}
+
+static uint32_t
+req_cost(struct req *req)
+{
+	int i;
+	uint64_t *perf = req->perf_accum;
+	uint64_t p;
+	uint32_t max_cost = 0;
+	uint32_t cost = 0;
+	struct acct_req *ar = &req->acct;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		p = perf[i];
+
+		switch (events[i]) {
+		case PERF_COUNT_HW_INSTRUCTIONS:
+			cost = (uint32_t)(((double)p / (N_CORES * CPU_HZ))
+					  * IN_MICROS);
+			break;
+		default:
+			continue;
+		};
+
+		max_cost = uint32_max(max_cost, cost);
+	}
+
+	cost = bytes_to_cost(ar->req_hdrbytes + ar->req_bodybytes);
+	max_cost = uint32_max(max_cost, cost);
+
+	cost = bytes_to_cost(ar->resp_hdrbytes + ar->resp_bodybytes);
+	max_cost = uint32_max(max_cost, cost);
+
+	/* TODO: Add backend req and resp costs */
+
+	return max_cost;
+}
+
+int
+req_complete(struct pool *pp, struct req *req)
+{
+	struct pool_task *task = &req->task;
+	uint32_t key = req->cust_id;
+	uint32_t cost = req_cost(req);
+
+	AN(task);
+
+	Lck_Lock(&pp->mtx);
+	rr_complete(pp->fair_queue, key, (void *)task, cost);
+	Lck_Unlock(&pp->mtx);
+
+	return (0);
+}
 
 /* TODO: Real hash function */
 uint32_t
@@ -591,7 +591,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 		WS_Release(req->htc->ws, 0);
 
 		accum_perf_ctrs(wrk, req);
-		//req_complete(wrk->pool, req);
+		req_complete(wrk->pool, req);
 		//print_perf_ctrs(req);
 		AN(http1_req_cleanup(sp, wrk, req));
 		return;
@@ -620,7 +620,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 				req->acct.req_hdrbytes +=
 				    req->htc->rxbuf_e - req->htc->rxbuf_b;
 				accum_perf_ctrs(wrk, req);
-				//req_complete(wrk->pool, req);
+				req_complete(wrk->pool, req);
 				//print_perf_ctrs(req);
 				Req_AcctLogCharge(wrk->stats, req);
 				Req_Release(req);
@@ -644,7 +644,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			if (hs == HTC_S_IDLE) {
 				wrk->stats->sess_herd++;
 				accum_perf_ctrs(wrk, req);
-				//req_complete(wrk->pool, req);
+				req_complete(wrk->pool, req);
 				//print_perf_ctrs(req);
 				Req_Release(req);
 				SES_Wait(sp, &HTTP1_transport);
@@ -717,7 +717,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			 */
 			if (VTCP_check_hup(sp->fd)) {
 				accum_perf_ctrs(wrk, req);
-				//req_complete(wrk->pool, req);
+				req_complete(wrk->pool, req);
 				//print_perf_ctrs(req);
 				http1_cleanup_waiting(wrk, req, SC_REM_CLOSE);
 				return;
@@ -737,7 +737,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			http1_setstate(sp, H1CLEANUP);
 		} else if (st == H1CLEANUP) {
 			accum_perf_ctrs(wrk, req);
-			//req_complete(wrk->pool, req);
+			req_complete(wrk->pool, req);
 			print_perf_ctrs(req);
 			if (http1_req_cleanup(sp, wrk, req))
 				return;

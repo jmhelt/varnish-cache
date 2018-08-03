@@ -390,11 +390,11 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 			}
 		}
 
-		//if (tp == NULL) {
-		//	tp = (struct pool_task*)rr_dequeue(pp->fair_queue);
-		//	if (tp != NULL)
-		//		pp->lqueue--;
-		//}
+		if (tp == NULL) {
+			tp = (struct pool_task*)rr_dequeue(pp->fair_queue);
+			if (tp != NULL)
+				pp->lqueue--;
+		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||
 		    (wrk->stats->summs >= cache_param->wthread_stats_rate))
