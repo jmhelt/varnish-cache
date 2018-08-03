@@ -156,19 +156,18 @@ Req_New(const struct worker *wrk, struct sess *sp)
 	return (req);
 }
 
-static int i = 0;
+#define SAMPLING_FREQ 0.2
 
 bool
 should_profile()
 {
-	bool profile = false;
-	if (i % 5 == 0) {
-		profile = true;
-	}
+	const int cutoff = (int)(SAMPLING_FREQ * RAND_MAX);
+	int r = rand();
 
-	i++;
-
-	return profile;
+	if (r <= cutoff)
+		return true;
+	else
+		return false;
 }
 
 void
