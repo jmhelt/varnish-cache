@@ -72,7 +72,7 @@ Req_AcctLogCharge(struct VSC_main *ds, struct req *req)
 #include "tbl/acct_fields_req.h"
 }
 
-#define SAMPLING_FREQ 0.2
+#define SAMPLING_FREQ 1
 
 bool
 should_profile()
