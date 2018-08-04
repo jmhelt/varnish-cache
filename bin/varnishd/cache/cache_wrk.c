@@ -138,10 +138,12 @@ start_monitoring(struct worker *wrk)
 			exit(EXIT_FAILURE);
 		}
 
-		ioctl(fd, PERF_EVENT_IOC_RESET, 0);
-		ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
 		resource_fds[i] = fd;
 	}
+
+	fd = resource_fds[0];
+	ioctl(fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+	ioctl(fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
 }
 
 void

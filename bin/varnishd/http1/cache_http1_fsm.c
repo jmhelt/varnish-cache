@@ -511,13 +511,8 @@ void handle_error(char *msg)
 }
 
 struct read_format {
-	uint64_t nr;            /* The number of events */
-	uint64_t time_enabled;  /* if PERF_FORMAT_TOTAL_TIME_ENABLED */
-	uint64_t time_running;  /* if PERF_FORMAT_TOTAL_TIME_RUNNING */
-	struct {
-		uint64_t value;     /* The value of the event */
-		uint64_t id;        /* if PERF_FORMAT_ID */
-	} values[N_COUNTERS];
+	uint64_t nr;
+	uint64_t values[N_COUNTERS];
 };
 
 static void
@@ -536,7 +531,7 @@ start_perf_ctrs(struct worker *wrk, struct req *req)
 			handle_error("read");
 
 		for (i = 0; i < N_COUNTERS; i++) {
-			value = buf.values[i].value;
+			value = buf.values[i];
 			req->perf_start[i] = value;
 		}
 	}
@@ -558,8 +553,8 @@ accum_perf_ctrs(struct worker *wrk, struct req *req)
 			handle_error("read");
 
 		for (i = 0; i < N_COUNTERS; i++) {
-			value = buf.values[i].value;
-			req->perf_accum[i] = value - req->perf_start[i];
+			value = buf.values[i];
+			req->perf_accum[i] += value - req->perf_start[i];
 		}
 	}
 }
