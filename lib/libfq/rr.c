@@ -43,11 +43,11 @@ rr_destroy(struct rr *rr)
 			free(vn);
 		}
 
-		while (!VTAILQ_EMPTY(&qn->in_progress)) {
-			vn = VTAILQ_FIRST(&qn->in_progress);
-			VTAILQ_REMOVE(&qn->in_progress, vn, list);
-			free(vn);
-		}
+		//while (!VTAILQ_EMPTY(&qn->in_progress)) {
+		//	vn = VTAILQ_FIRST(&qn->in_progress);
+		//	VTAILQ_REMOVE(&qn->in_progress, vn, list);
+		//	free(vn);
+		//}
 
 		free(qn);
 	}
@@ -65,7 +65,7 @@ rr_add_queue(struct rr *rr, uint32_t key)
 {
 	struct rr_qn *qn = malloc(sizeof(struct rr_qn));
 	VTAILQ_INIT(&qn->q);
-	VTAILQ_INIT(&qn->in_progress);
+	//VTAILQ_INIT(&qn->in_progress);
 	qn->key = key;
 	qn->surplus = 0;
 	qn->cost = 1;
@@ -167,7 +167,8 @@ rr_dequeue(struct rr *rr)
 
 	v = vn->v;
 	vn->amount_charged = cost;
-	VTAILQ_INSERT_TAIL(&qn->in_progress, vn, list);
+	free(vn);
+	//VTAILQ_INSERT_TAIL(&qn->in_progress, vn, list);
 
 	/* If queue is no longer active */
 	if (VTAILQ_EMPTY(&qn->q)) {
@@ -205,33 +206,33 @@ void
 rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost)
 {
 	struct rr_qn *qn;
-	struct rr_vn *vn;
-	uint32_t amount_charged;
+//	struct rr_vn *vn;
+//	uint32_t amount_charged;
 
 	/* Find or create queue */
 	if (!uint32_void_tbl_find(rr->qs, &key, (void**)&qn))
 		return;
 
 	/* Find in-progress node to get amount charged */
-	VTAILQ_FOREACH(vn, &qn->in_progress, list) {
-		if (vn->v == v)
-			break;
-	};
+//	VTAILQ_FOREACH(vn, &qn->in_progress, list) {
+//		if (vn->v == v)
+//			break;
+//	};
 
-	if (!vn)
-		return;
+//	if (!vn)
+//		return;
 
 	/* Update cost estimate */
 	qn->cost = int64_max(0.9 * qn->cost, cost);
 
 	/* Update surplus based on true cost */
-	assert(vn->amount_charged != 0);
-	if (qn->active) {
-		amount_charged = vn->amount_charged;
-		qn->surplus += (int64_t)cost - amount_charged;
-		rr->max_surplus = int64_max(qn->surplus, rr->max_surplus);
-	}
+//	assert(vn->amount_charged != 0);
+//	if (qn->active) {
+//		amount_charged = vn->amount_charged;
+//		qn->surplus += (int64_t)cost - amount_charged;
+//		rr->max_surplus = int64_max(qn->surplus, rr->max_surplus);
+//	}
 
-	VTAILQ_REMOVE(&qn->in_progress, vn, list);
-	free(vn);
+//	VTAILQ_REMOVE(&qn->in_progress, vn, list);
+//	free(vn);
 }

@@ -452,20 +452,24 @@ req_cost(struct req *req)
 	return max_cost;
 }
 
-int
+void
 req_complete(struct pool *pp, struct req *req)
 {
-	struct pool_task *task = &req->task;
-	uint32_t key = req->cust_id;
-	uint32_t cost = req_cost(req);
+	uint32_t cost;
+	uint32_t key;
+	struct pool_task *task;
 
-	AN(task);
+	if (req->profile) {
+		task = &req->task;
+		key = req->cust_id;
+		cost = req_cost(req);
 
-	Lck_Lock(&pp->mtx);
-	rr_complete(pp->fair_queue, key, (void *)task, cost);
-	Lck_Unlock(&pp->mtx);
+		AN(task);
 
-	return (0);
+		Lck_Lock(&pp->mtx);
+		rr_complete(pp->fair_queue, key, (void *)task, cost);
+		Lck_Unlock(&pp->mtx);
+	}
 }
 
 /* TODO: Real hash function */
@@ -506,47 +510,52 @@ void handle_error(char *msg)
 	exit(EXIT_FAILURE);
 }
 
-#define RBUF_LEN 4
+struct read_format {
+	uint64_t nr;
+	uint64_t values[N_COUNTERS];
+};
 
 static void
 start_perf_ctrs(struct worker *wrk, struct req *req)
 {
-	uint64_t buf[RBUF_LEN];
+	struct read_format buf;
 	int i;
 	int fd;
 	ssize_t n;
-	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		n = read(fd, buf, sizeof(buf));
+	if (req->profile) {
+		fd = wrk->resource_fds[0];
+		n = read(fd, &buf, sizeof(struct read_format));
 		if (n == -1)
 			handle_error("read");
 
-		value = buf[0];
-		req->perf_start[i] = value;
+		for (i = 0; i < N_COUNTERS; i++) {
+			value = buf.values[i];
+			req->perf_start[i] = value;
+		}
 	}
 }
 
 static void
 accum_perf_ctrs(struct worker *wrk, struct req *req)
 {
-	uint64_t buf[RBUF_LEN];
+	struct read_format buf;
 	int i;
 	int fd;
 	ssize_t n;
-	int *resource_fds = wrk->resource_fds;
 	uint64_t value;
 
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		n = read(fd, buf, sizeof(buf));
+	if (req->profile) {
+		fd = wrk->resource_fds[0];
+		n = read(fd, &buf, sizeof(struct read_format));
 		if (n == -1)
 			handle_error("read");
 
-		value = buf[0];
-		req->perf_accum[i] = value - req->perf_start[i];
+		for (i = 0; i < N_COUNTERS; i++) {
+			value = buf.values[i];
+			req->perf_accum[i] += value - req->perf_start[i];
+		}
 	}
 }
 

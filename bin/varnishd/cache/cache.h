@@ -41,6 +41,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <linux/perf_event.h>
+#include <stdbool.h>
 
 #include "vdef.h"
 #include "vrt.h"
@@ -532,6 +533,7 @@ struct req {
 	uint64_t		perf_accum[N_COUNTERS];
 
 	struct vrt_privs	privs[1];
+	bool			profile;
 };
 
 /*--------------------------------------------------------------------

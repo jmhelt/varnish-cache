@@ -20,7 +20,7 @@ VTAILQ_HEAD(q_head, rr_vn);
 struct rr_qn {
 	VTAILQ_ENTRY(rr_qn) list;
 	struct q_head q;
-	struct q_head in_progress;
+//	struct q_head in_progress;
 	int64_t surplus;
 	uint32_t cost;
 	uint32_t key;
