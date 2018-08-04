@@ -29,8 +29,6 @@
  * Private include file for the pool aware code.
  */
 
-#include "rr.h"
-
 VTAILQ_HEAD(taskhead, pool_task);
 
 struct poolsock;
@@ -49,7 +47,6 @@ struct pool {
 	unsigned			nidle;
 	struct taskhead			idle_queue;
 	struct taskhead			queues[TASK_QUEUE_END];
-	struct rr			*fair_queue;
 	unsigned			nthr;
 	unsigned			dry;
 	unsigned			lqueue;

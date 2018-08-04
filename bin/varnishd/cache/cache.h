@@ -392,7 +392,6 @@ struct busyobj {
 	 * is recycled.
 	 */
 	int			retries;
-	uint32_t		cust_id;
 	struct req		*req;
 	struct sess		*sp;
 	struct worker		*wrk;
@@ -450,7 +449,6 @@ struct req {
 	enum sess_close		doclose;
 	int			restarts;
 	int			esi_level;
-	uint32_t		cust_id; /* customer/service ID */
 	struct req		*top;	/* esi_level == 0 request */
 
 #define REQ_FLAG(l, r, w, d) unsigned	l:1;

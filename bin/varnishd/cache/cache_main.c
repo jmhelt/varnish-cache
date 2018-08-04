@@ -43,8 +43,6 @@
 #  include <pthread_np.h>
 #endif
 
-#include <pthread.h>
-
 #include "common/heritage.h"
 
 #include "vcli_serve.h"
@@ -299,6 +297,7 @@ child_sigmagic(size_t altstksz)
 void
 child_main(int sigmagic, size_t altstksz)
 {
+
 	if (sigmagic)
 		child_sigmagic(altstksz);
 	(void)signal(SIGINT, SIG_DFL);
