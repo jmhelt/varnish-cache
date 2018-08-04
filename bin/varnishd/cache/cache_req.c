@@ -168,7 +168,7 @@ Req_New(const struct worker *wrk, struct sess *sp)
 	VRTPRIV_init(req->privs);
 
 	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	//memset(req->perf_accum, 0, sizeof(req->perf_accum));
+	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 	req->profile = should_profile();
 
 	return (req);
@@ -188,7 +188,7 @@ Req_Release(struct req *req)
 #include "tbl/acct_fields_req.h"
 
 	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	//memset(req->perf_accum, 0, sizeof(req->perf_accum));
+	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 	req->profile = should_profile();
 
 	AZ(req->vcl);
@@ -254,7 +254,7 @@ Req_Cleanup(struct sess *sp, struct worker *wrk, struct req *req)
 	req->req_body_status = REQ_BODY_INIT;
 
 	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	//memset(req->perf_accum, 0, sizeof(req->perf_accum));
+	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 	req->profile = should_profile();
 
 	req->hash_always_miss = 0;
