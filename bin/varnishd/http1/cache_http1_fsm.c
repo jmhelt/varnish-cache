@@ -413,7 +413,7 @@ bytes_to_cost(uint64_t bytes)
 {
 	double b = (double)bytes;
 	b += (b / (MTU - HEADERS_BYTES) + 1) * HEADERS_BYTES;
-	return (uint32_t)((b * 8) / NIC_BPS) * IN_MICROS;
+	return (uint32_t)(((b * 8) / NIC_BPS) * IN_MICROS);
 }
 
 static uint32_t
