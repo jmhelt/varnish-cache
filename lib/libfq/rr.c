@@ -232,7 +232,6 @@ static uint32_t k = 0;
 static uint32_t smooth = 100;
 static uint64_t last = 0;
 static uint64_t sys_costs[4] = {0};
-static uint64_t last_costs[4] = {0};
 static bool overloaded = false;
 
 static uint64_t
@@ -259,10 +258,10 @@ rr_check_overload(uint32_t *costs, uint8_t n)
 	last = curr_us;
 
 	for (i = 0; i < n; i++) {
-		if ((sys_costs[i] - last_costs[i]) > diff_us)
+		if (sys_costs[i] > diff_us)
 			return true;
 
-		last_costs[i] = sys_costs[i];
+		sys_costs[i] = 0;
 	}
 
 	return false;
