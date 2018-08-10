@@ -242,14 +242,17 @@ rr_gettime()
 static bool
 rr_check_overload(uint32_t *costs, uint8_t n)
 {
-	uint8_t i;
+	uint64_t curr_us;
 	uint64_t diff_us;
+	uint8_t i;
 
 	if (last == 0)
 		last = rr_gettime();
 
-	diff_us = rr_gettime() - last;
+	curr_us = rr_gettime();
+	diff_us = curr_us - last;
 	diff_us = (uint64_t)(0.9 * diff_us);
+	last = curr_us;
 
 	for (i = 0; i < n; i++) {
 		if (costs[i] > diff_us)
