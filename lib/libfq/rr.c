@@ -5,7 +5,7 @@
 #include "rr.h"
 
 struct rr*
-rr_init(void)
+rr_init(uint8_t n_resources)
 {
 	struct rr *rr = malloc(sizeof(struct rr));
 
@@ -17,6 +17,7 @@ rr_init(void)
 	rr->max_surplus = 0;
 	rr->prev_max_surplus = 0;
 	rr->gave_quantum = false;
+	rr->n_resources = n_resources;
 
 	return rr;
 }
@@ -202,10 +203,35 @@ rr_dequeue(struct rr *rr)
 	return v;
 }
 
+static inline uint32_t
+uint32_max(uint32_t x, uint32_t y)
+{
+	if (x > y)
+		return x;
+	else
+		return y;
+}
+
+static uint32_t
+rr_max_cost(uint32_t *costs, uint8_t n)
+{
+	uint8_t i;
+	uint32_t cost;
+	uint32_t max = 1;
+
+	for (i = 0; i < n; i++) {
+		cost = costs[i];
+		max = uint32_max(max, cost);
+	}
+
+	return max;
+}
+
 void
-rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost)
+rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs)
 {
 	struct rr_qn *qn;
+	uint32_t cost;
 //	struct rr_vn *vn;
 //	uint32_t amount_charged;
 
@@ -223,6 +249,7 @@ rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost)
 //		return;
 
 	/* Update cost estimate */
+	cost = rr_max_cost(costs, rr->n_resources);
 	qn->cost = int64_max(0.9 * qn->cost, cost);
 
 	/* Update surplus based on true cost */

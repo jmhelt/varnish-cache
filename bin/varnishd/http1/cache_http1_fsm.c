@@ -392,21 +392,14 @@ req_enqueue(struct pool *pp, struct req *req)
 	return (0);
 }
 
-static inline uint32_t
-uint32_max(uint32_t x, uint32_t y)
-{
-	if (x > y)
-		return x;
-	else
-		return y;
-}
-
 static const uint8_t N_CORES = 8;
-static const uint64_t CPU_HZ = 2.9 * 1e9;
+static const uint64_t CPU_HZ = 2.9e9;
 static const uint32_t IN_MICROS = 1e6;
-static const uint64_t NIC_BPS = 10 * 1e9;
+static const uint64_t NIC_BPS = 1e10;
 static const uint16_t MTU = 1500;
 static const uint16_t HEADERS_BYTES = 64;
+static const uint16_t CACHELINE_BYTES = 64;
+static const uint64_t MEMORY_BPS = 9e9;
 
 static inline uint32_t
 bytes_to_cost(uint64_t bytes)
@@ -416,13 +409,12 @@ bytes_to_cost(uint64_t bytes)
 	return (uint32_t)(((b * 8) / NIC_BPS) * IN_MICROS);
 }
 
-static uint32_t
-req_cost(struct req *req)
+void
+req_costs(struct req *req, uint32_t *costs)
 {
 	int i;
 	uint64_t *perf = req->perf_accum;
 	uint64_t p;
-	uint32_t max_cost = 0;
 	uint32_t cost = 0;
 	struct acct_req *ar = &req->acct;
 
@@ -434,40 +426,41 @@ req_cost(struct req *req)
 			cost = (uint32_t)(((double)p / (N_CORES * CPU_HZ))
 					  * IN_MICROS);
 			break;
+		case PERF_COUNT_HW_CACHE_MISSES:
+			cost = (uint32_t)(((double)p * CACHELINE_BYTES * 8
+					   / MEMORY_BPS) * IN_MICROS);
 		default:
 			continue;
 		};
 
-		max_cost = uint32_max(max_cost, cost);
+		costs[i] = cost;
 	}
 
 	cost = bytes_to_cost(ar->req_hdrbytes + ar->req_bodybytes);
-	max_cost = uint32_max(max_cost, cost);
+	costs[i++] = cost;
 
 	cost = bytes_to_cost(ar->resp_hdrbytes + ar->resp_bodybytes);
-	max_cost = uint32_max(max_cost, cost);
+	costs[i++] = cost;
 
 	/* TODO: Add backend req and resp costs */
-
-	return max_cost;
 }
 
 void
 req_complete(struct pool *pp, struct req *req)
 {
-	uint32_t cost;
+	uint32_t costs[N_RESOURCES];
 	uint32_t key;
 	struct pool_task *task;
 
 	if (req->profile) {
 		task = &req->task;
 		key = req->cust_id;
-		cost = req_cost(req);
+		req_costs(req, costs);
 
 		AN(task);
 
 		Lck_Lock(&pp->mtx);
-		rr_complete(pp->fair_queue, key, (void *)task, cost);
+		rr_complete(pp->fair_queue, key, (void *)task, costs);
 		Lck_Unlock(&pp->mtx);
 	}
 }

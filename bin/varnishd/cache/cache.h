@@ -233,6 +233,7 @@ enum task_prio {
 	(prio == TASK_QUEUE_REQ || prio == TASK_QUEUE_STR)
 
 /*--------------------------------------------------------------------*/
+#define N_RESOURCES 4
 #define N_COUNTERS 2
 static const enum perf_hw_id events[N_COUNTERS] = {
 	PERF_COUNT_HW_INSTRUCTIONS,

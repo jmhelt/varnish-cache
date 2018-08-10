@@ -38,11 +38,12 @@ struct rr {
 	int64_t prev_max_surplus;    /* Max surplus in previous round */
 	uint32_t n_active;	     /* Length of active queue */
 	uint32_t round_remaining;    /* Number queues left in this round */
+	uint8_t n_resources;	     /* Number of resources */
 	bool gave_quantum;	     /* State for dequeue */
 };
 
 struct rr*
-rr_init(void);
+rr_init(uint8_t n_resources);
 
 void
 rr_destroy(struct rr *rr);
@@ -54,6 +55,6 @@ void*
 rr_dequeue(struct rr *rr);
 
 void
-rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost);
+rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs);
 
 #endif /* RR_H */
