@@ -229,7 +229,7 @@ rr_max_cost(uint32_t *costs, uint8_t n)
 }
 
 static uint32_t k = 0;
-static uint32_t smooth = 100;
+static uint32_t smooth = 10;
 static uint64_t last = 0;
 static uint64_t sys_costs[4] = {0};
 static bool overloaded = false;
@@ -254,7 +254,7 @@ rr_check_overload(uint32_t *costs, uint8_t n)
 
 	curr_us = rr_gettime();
 	diff_us = curr_us - last;
-	diff_us = (uint64_t)(0.9 * diff_us);
+	diff_us = (uint64_t)(0.95 * diff_us);
 	last = curr_us;
 
 	for (i = 0; i < n; i++) {
