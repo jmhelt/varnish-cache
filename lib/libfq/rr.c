@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "rr.h"
 
@@ -227,6 +228,37 @@ rr_max_cost(uint32_t *costs, uint8_t n)
 	return max;
 }
 
+static uint64_t last = 0;
+static bool overloaded = false;
+
+static uint64_t
+rr_gettime()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return tv.tv_sec * 1e6 + tv.tv_usec;
+}
+
+static bool
+rr_check_overload(uint32_t *costs, uint8_t n)
+{
+	uint8_t i;
+	uint64_t diff_us;
+
+	if (last == 0)
+		last = rr_gettime();
+
+	diff_us = rr_gettime() - last;
+	diff_us = (uint64_t)(0.9 * diff_us);
+
+	for (i = 0; i < n; i++) {
+		if (costs[i] > diff_us)
+			return true;
+	}
+
+	return false;
+}
+
 void
 rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs)
 {
@@ -247,6 +279,9 @@ rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs)
 
 //	if (!vn)
 //		return;
+
+	if (overloaded != rr_check_overload(costs, rr->n_resources))
+		overloaded = !overloaded;
 
 	/* Update cost estimate */
 	cost = rr_max_cost(costs, rr->n_resources);
