@@ -303,8 +303,9 @@ rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs)
 		if (overloaded != rr_check_overload(costs, rr->n_resources))
 			overloaded = !overloaded;
 
-		k = (k + 1) % smooth;
 	}
+
+	k = (k + 1) % smooth;
 
 	/* Update cost estimate */
 	cost = rr_max_cost(costs, rr->n_resources);
