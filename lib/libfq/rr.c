@@ -228,7 +228,11 @@ rr_max_cost(uint32_t *costs, uint8_t n)
 	return max;
 }
 
+static uint32_t k = 0;
+static uint32_t smooth = 100;
 static uint64_t last = 0;
+static uint64_t sys_costs[4] = {0};
+static uint64_t last_costs[4] = {0};
 static bool overloaded = false;
 
 static uint64_t
@@ -255,11 +259,22 @@ rr_check_overload(uint32_t *costs, uint8_t n)
 	last = curr_us;
 
 	for (i = 0; i < n; i++) {
-		if (costs[i] > diff_us)
+		if ((sys_costs[i] - last_costs[i]) > diff_us)
 			return true;
+
+		last_costs[i] = sys_costs[i];
 	}
 
 	return false;
+}
+
+static void
+rr_accum_costs(uint32_t *costs, uint8_t n)
+{
+	uint8_t i;
+
+	for (i = 0; i < n; i++)
+		sys_costs[i] += costs[i];
 }
 
 void
@@ -283,8 +298,13 @@ rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t *costs)
 //	if (!vn)
 //		return;
 
-	if (overloaded != rr_check_overload(costs, rr->n_resources))
-		overloaded = !overloaded;
+	rr_accum_costs(costs, rr->n_resources);
+	if (k == 0) {
+		if (overloaded != rr_check_overload(costs, rr->n_resources))
+			overloaded = !overloaded;
+
+		k = (k + 1) % smooth;
+	}
 
 	/* Update cost estimate */
 	cost = rr_max_cost(costs, rr->n_resources);
