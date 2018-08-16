@@ -390,73 +390,73 @@ req_enqueue(struct pool *pp, struct req *req)
 	return (0);
 }
 
-static void
-print_perf_ctrs(struct req *req)
-{
-	int i;
-	struct vsl_log *vsl = req->vsl;
-
-	if (req->profile) {
-		for (i = 0; i < N_COUNTERS; i++) {
-			VSLb(vsl, SLT_VCL_perf, "REQ,%d,%ld", i, req->perf_accum[i]);
-		}
-	}
-}
-
-void handle_error(char *msg)
-{
-	perror(msg);
-	exit(EXIT_FAILURE);
-}
-
-struct read_format {
-	uint64_t nr;
-	uint64_t values[N_COUNTERS];
-};
-
-static void
-start_perf_ctrs(struct worker *wrk, struct req *req)
-{
-	struct read_format buf;
-	int i;
-	int fd;
-	ssize_t n;
-	uint64_t value;
-
-	if (req->profile) {
-		fd = wrk->resource_fds[0];
-		n = read(fd, &buf, sizeof(struct read_format));
-		if (n == -1)
-			handle_error("read");
-
-		for (i = 0; i < N_COUNTERS; i++) {
-			value = buf.values[i];
-			req->perf_start[i] = value;
-		}
-	}
-}
-
-static void
-accum_perf_ctrs(struct worker *wrk, struct req *req)
-{
-	struct read_format buf;
-	int i;
-	int fd;
-	ssize_t n;
-	uint64_t value;
-
-	if (req->profile) {
-		fd = wrk->resource_fds[0];
-		n = read(fd, &buf, sizeof(struct read_format));
-		if (n == -1)
-			handle_error("read");
-
-		for (i = 0; i < N_COUNTERS; i++) {
-			value = buf.values[i];
-			req->perf_accum[i] += value - req->perf_start[i];
-		}
-	}
-}
+//static void
+//print_perf_ctrs(struct req *req)
+//{
+//	int i;
+//	struct vsl_log *vsl = req->vsl;
+//
+//	if (req->profile) {
+//		for (i = 0; i < N_COUNTERS; i++) {
+//			VSLb(vsl, SLT_VCL_perf, "REQ,%d,%ld", i, req->perf_accum[i]);
+//		}
+//	}
+//}
+//
+//void handle_error(char *msg)
+//{
+//	perror(msg);
+//	exit(EXIT_FAILURE);
+//}
+//
+//struct read_format {
+//	uint64_t nr;
+//	uint64_t values[N_COUNTERS];
+//};
+//
+//static void
+//start_perf_ctrs(struct worker *wrk, struct req *req)
+//{
+//	struct read_format buf;
+//	int i;
+//	int fd;
+//	ssize_t n;
+//	uint64_t value;
+//
+//	if (req->profile) {
+//		fd = wrk->resource_fds[0];
+//		n = read(fd, &buf, sizeof(struct read_format));
+//		if (n == -1)
+//			handle_error("read");
+//
+//		for (i = 0; i < N_COUNTERS; i++) {
+//			value = buf.values[i];
+//			req->perf_start[i] = value;
+//		}
+//	}
+//}
+//
+//static void
+//accum_perf_ctrs(struct worker *wrk, struct req *req)
+//{
+//	struct read_format buf;
+//	int i;
+//	int fd;
+//	ssize_t n;
+//	uint64_t value;
+//
+//	if (req->profile) {
+//		fd = wrk->resource_fds[0];
+//		n = read(fd, &buf, sizeof(struct read_format));
+//		if (n == -1)
+//			handle_error("read");
+//
+//		for (i = 0; i < N_COUNTERS; i++) {
+//			value = buf.values[i];
+//			req->perf_accum[i] += value - req->perf_start[i];
+//		}
+//	}
+//}
 
 static void
 HTTP1_Session(struct worker *wrk, struct req *req)
@@ -485,7 +485,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			SES_Close(sp, SC_TX_ERROR);
 		WS_Release(req->htc->ws, 0);
 
-		accum_perf_ctrs(wrk, req);
+		//accum_perf_ctrs(wrk, req);
 		//print_perf_ctrs(req);
 		AN(http1_req_cleanup(sp, wrk, req));
 		return;
@@ -496,7 +496,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 	while (1) {
 		st = http1_getstate(sp);
 		if (st == H1NEWREQ) {
-			start_perf_ctrs(wrk, req);
+			//start_perf_ctrs(wrk, req);
 			CHECK_OBJ_NOTNULL(req->transport, TRANSPORT_MAGIC);
 			assert(isnan(req->t_prev));
 			assert(isnan(req->t_req));
@@ -513,7 +513,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			if (hs < HTC_S_EMPTY) {
 				req->acct.req_hdrbytes +=
 				    req->htc->rxbuf_e - req->htc->rxbuf_b;
-				accum_perf_ctrs(wrk, req);
+				//accum_perf_ctrs(wrk, req);
 				//print_perf_ctrs(req);
 				Req_AcctLogCharge(wrk->stats, req);
 				Req_Release(req);
@@ -536,7 +536,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			}
 			if (hs == HTC_S_IDLE) {
 				wrk->stats->sess_herd++;
-				accum_perf_ctrs(wrk, req);
+				//accum_perf_ctrs(wrk, req);
 				//print_perf_ctrs(req);
 				Req_Release(req);
 				SES_Wait(sp, &HTTP1_transport);
@@ -589,7 +589,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			http1_setstate(sp, H1BUSY);
 			req->task.func = http1_req;
 			req->task.priv = req;
-			accum_perf_ctrs(wrk, req);
+			//accum_perf_ctrs(wrk, req);
 			AZ(req_enqueue(wrk->pool, req));
 
 			/* This worker is relieved of duty */
@@ -599,13 +599,13 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			return;
 		} else if (st == H1BUSY) {
 			CHECK_OBJ_NOTNULL(req->transport, TRANSPORT_MAGIC);
-			start_perf_ctrs(wrk, req);
+			//start_perf_ctrs(wrk, req);
 			/*
 			 * Return from waitinglist.
 			 * Check to see if the remote has left.
 			 */
 			if (VTCP_check_hup(sp->fd)) {
-				accum_perf_ctrs(wrk, req);
+				//accum_perf_ctrs(wrk, req);
 				//print_perf_ctrs(req);
 				http1_cleanup_waiting(wrk, req, SC_REM_CLOSE);
 				return;
@@ -615,7 +615,7 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			req->task.func = http1_req;
 			req->task.priv = req;
 			if (CNT_Request(wrk, req) == REQ_FSM_DISEMBARK) {
-				accum_perf_ctrs(wrk, req);
+				//accum_perf_ctrs(wrk, req);
 				return;
 			}
 			req->task.func = NULL;
@@ -624,8 +624,8 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			AZ(wrk->aws->r);
 			http1_setstate(sp, H1CLEANUP);
 		} else if (st == H1CLEANUP) {
-			accum_perf_ctrs(wrk, req);
-			print_perf_ctrs(req);
+			//accum_perf_ctrs(wrk, req);
+			//print_perf_ctrs(req);
 			if (http1_req_cleanup(sp, wrk, req))
 				return;
 			HTC_RxInit(req->htc, req->ws);
