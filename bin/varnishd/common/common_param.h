@@ -108,6 +108,7 @@ struct params {
 	unsigned		wthread_stats_rate;
 	ssize_t			wthread_stacksize;
 	unsigned		wthread_queue_limit;
+	int			resource_fds[2];
 
 	struct vre_limits	vre_limits;
 

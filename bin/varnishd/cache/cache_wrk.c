@@ -35,10 +35,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <linux/perf_event.h>
-#include <asm/unistd.h>
-#include <string.h>
-#include <sys/ioctl.h>
 
 #include "cache_varnishd.h"
 #include "cache_pool.h"
@@ -97,69 +93,6 @@ WRK_BgThread(pthread_t *thr, const char *name, bgthread_t *func, void *priv)
 	AZ(pthread_create(thr, NULL, wrk_bgthread, bt));
 }
 
-/*--------------------------------------------------------------------*/
-
-static long
-perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
-		int cpu, int group_fd, unsigned long flags)
-{
-	int ret;
-
-	ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
-		      group_fd, flags);
-	return ret;
-}
-
-void
-start_monitoring(struct worker *wrk)
-{
-	int fd;
-	int leader;
-	int i;
-	struct perf_event_attr pe;
-	int *resource_fds = wrk->resource_fds;
-
-	memset(&pe, 0, sizeof(struct perf_event_attr));
-	pe.type = PERF_TYPE_HARDWARE;
-	pe.size = sizeof(struct perf_event_attr);
-	pe.disabled = 1;
-	pe.read_format = PERF_FORMAT_GROUP;
-
-	for (i = 0; i < N_COUNTERS; i++) {
-		if (i == 0)
-			leader = -1;
-		else
-			leader = resource_fds[0];
-
-		pe.config = events[i];
-		fd = perf_event_open(&pe, 0, -1, leader, 0);
-		if (fd == -1) {
-			fprintf(stderr, "Error opening leader %llx\n", pe.config);
-			exit(EXIT_FAILURE);
-		}
-
-		resource_fds[i] = fd;
-	}
-
-	fd = resource_fds[0];
-	ioctl(fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-	ioctl(fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
-}
-
-void
-stop_monitoring(struct worker *wrk)
-{
-	int i;
-	int fd;
-	int *resource_fds = wrk->resource_fds;
-
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-		close(fd);
-	}
-}
-
 static void
 WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 {
@@ -178,7 +111,6 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	memset(&ds, 0, sizeof ds);
 	w->stats = &ds;
 	AZ(pthread_cond_init(&w->cond, NULL));
-	start_monitoring(w);
 
 	WS_Init(w->aws, "wrk", ws, thread_workspace);
 
@@ -189,7 +121,7 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	VSL(SLT_WorkThread, 0, "%p end", w);
 	if (w->vcl != NULL)
 		VCL_Rel(&w->vcl);
-	stop_monitoring(w);
+
 	AZ(pthread_cond_destroy(&w->cond));
 	HSH_Cleanup(w);
 	Pool_Sumstat(w);

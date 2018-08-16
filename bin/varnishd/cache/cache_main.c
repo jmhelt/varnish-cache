@@ -34,6 +34,10 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <linux/perf_event.h>
+#include <asm/unistd.h>
+#include <string.h>
+#include <sys/ioctl.h>
 
 #ifdef HAVE_SIGALTSTACK
 #  include <sys/mman.h>
@@ -290,6 +294,69 @@ child_sigmagic(size_t altstksz)
 }
 
 
+/*--------------------------------------------------------------------*/
+
+static long
+perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
+		int cpu, int group_fd, unsigned long flags)
+{
+	int ret;
+
+	ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
+		      group_fd, flags);
+	return ret;
+}
+
+void
+start_monitoring(volatile int *resource_fds)
+{
+	int fd;
+	//int leader;
+	int i;
+	struct perf_event_attr pe;
+
+	memset(&pe, 0, sizeof(struct perf_event_attr));
+	pe.type = PERF_TYPE_HARDWARE;
+	pe.size = sizeof(struct perf_event_attr);
+	pe.disabled = 1;
+	pe.inherit = 1;
+	pe.inherit_stat = 1;
+	//pe.read_format = PERF_FORMAT_GROUP;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		//if (i == 0)
+		//	leader = -1;
+		//else
+		//	leader = resource_fds[0];
+
+		pe.config = events[i];
+		fd = perf_event_open(&pe, 0, -1, -1, 0);
+		if (fd == -1) {
+			fprintf(stderr, "Error opening leader %llx\n", pe.config);
+			exit(EXIT_FAILURE);
+		}
+
+		ioctl(fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
+		ioctl(fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
+
+		resource_fds[i] = fd;
+	}
+
+}
+
+void
+stop_monitoring(volatile int *resource_fds)
+{
+	int i;
+	int fd;
+
+	for (i = 0; i < N_COUNTERS; i++) {
+		fd = resource_fds[i];
+		ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+		close(fd);
+	}
+}
+
 /*=====================================================================
  * Run the child process
  */
@@ -365,8 +432,11 @@ child_main(int sigmagic, size_t altstksz)
 	if (FEATURE(FEATURE_WAIT_SILO))
 		SMP_Ready();
 #endif
+	start_monitoring(cache_param->resource_fds);
 
 	CLI_Run();
+
+	stop_monitoring(cache_param->resource_fds);
 
 	VCA_Shutdown();
 	BAN_Shutdown();

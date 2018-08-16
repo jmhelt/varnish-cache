@@ -268,7 +268,7 @@ struct worker {
 	unsigned		seen_methods;
 	unsigned		handling;
 
-	int			resource_fds[N_COUNTERS];
+	//int			resource_fds[N_COUNTERS];
 };
 
 /* Stored object -----------------------------------------------------
