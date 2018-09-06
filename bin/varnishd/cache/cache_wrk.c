@@ -211,11 +211,11 @@ pool_addstat(struct VSC_main *dst, struct VSC_main *src)
 static inline int
 pool_reserve(void)
 {
-	unsigned lim;
+	unsigned lim = cache_param->wthread_reserve;
 
 	if (cache_param->wthread_reserve == 0)
 		return (cache_param->wthread_min / 20 + 1);
-	lim = cache_param->wthread_min * 950 / 1000;
+	//lim = cache_param->wthread_min * 950 / 1000;
 	if (cache_param->wthread_reserve > lim)
 		return (lim);
 	return (cache_param->wthread_reserve);
@@ -328,19 +328,19 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	 * queue limits only apply to client threads - all other
 	 * work is vital and needs do be done at the earliest
 	 */
-	if (!TASK_QUEUE_CLIENT(prio) ||
-	    pp->lqueue + pp->nthr < cache_param->wthread_max +
-	    cache_param->wthread_queue_limit) {
+	//if (!TASK_QUEUE_CLIENT(prio) ||
+	//    pp->lqueue + pp->nthr < cache_param->wthread_max +
+	//    cache_param->wthread_queue_limit) {
 		pp->nqueued++;
 		pp->lqueue++;
 		VTAILQ_INSERT_TAIL(&pp->queues[prio], task, list);
-	} else {
-		if (prio == TASK_QUEUE_REQ)
-			pp->sdropped++;
-		else
-			pp->rdropped++;
-		retval = -1;
-	}
+	//} else {
+	//	if (prio == TASK_QUEUE_REQ)
+	//		pp->sdropped++;
+	//	else
+	//		pp->rdropped++;
+	//	retval = -1;
+	//}
 	Lck_Unlock(&pp->mtx);
 	return (retval);
 }
@@ -378,10 +378,10 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		WS_Reset(wrk->aws, 0);
 		AZ(wrk->vsl);
 
-		if (pp->nidle < pool_reserve())
-			prio_lim = TASK_QUEUE_RESERVE + 1;
-		else
-			prio_lim = TASK_QUEUE_END;
+		//if (pp->nidle < pool_reserve())
+		//	prio_lim = TASK_QUEUE_RESERVE + 1;
+		//else
+		prio_lim = TASK_QUEUE_END;
 
 		for (i = 0; i < prio_lim; i++) {
 			tp = VTAILQ_FIRST(&pp->queues[i]);

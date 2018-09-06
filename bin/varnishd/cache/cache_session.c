@@ -371,7 +371,7 @@ SES_Reschedule_Req(struct req *req, enum task_prio prio)
 	CHECK_OBJ_NOTNULL(sp, SESS_MAGIC);
 	pp = sp->pool;
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
-	AN(TASK_QUEUE_CLIENT(prio));
+	//AN(TASK_QUEUE_CLIENT(prio));
 
 	AN(req->task.func);
 
