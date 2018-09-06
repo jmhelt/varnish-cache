@@ -235,7 +235,7 @@ http1_reembark(struct worker *wrk, struct req *req)
 	http1_setstate(sp, H1BUSY);
 
 	if (!DO_DEBUG(DBG_FAILRESCHED) &&
-	    !SES_Reschedule_Req(req, TASK_QUEUE_REQ))
+	    !SES_Reschedule_Req(req, TASK_QUEUE_RESERVE))
 		return;
 
 	/* Couldn't schedule, ditch */

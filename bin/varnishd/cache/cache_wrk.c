@@ -211,11 +211,11 @@ pool_addstat(struct VSC_main *dst, struct VSC_main *src)
 static inline int
 pool_reserve(void)
 {
-	unsigned lim;
+	unsigned lim = cache_param->wthread_reserve;
 
 	if (cache_param->wthread_reserve == 0)
 		return (cache_param->wthread_min / 20 + 1);
-	lim = cache_param->wthread_min * 950 / 1000;
+	//lim = cache_param->wthread_min * 950 / 1000;
 	if (cache_param->wthread_reserve > lim)
 		return (lim);
 	return (cache_param->wthread_reserve);
