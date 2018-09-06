@@ -522,7 +522,7 @@ vca_accept_task(struct worker *wrk, void *arg)
 
 		wa->task.func = vca_make_session;
 		wa->task.priv = wa;
-		AZ(Pool_Task(wrk->pool, &wa->task, TASK_QUEUE_RESERVE));
+		AZ(Pool_Task(wrk->pool, &wa->task, TASK_QUEUE_REQ));
 		if (!ps->pool->die && DO_DEBUG(DBG_SLOW_ACCEPTOR))
 			VTIM_sleep(2.0);
 

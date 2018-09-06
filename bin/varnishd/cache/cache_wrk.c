@@ -328,19 +328,19 @@ Pool_Task(struct pool *pp, struct pool_task *task, enum task_prio prio)
 	 * queue limits only apply to client threads - all other
 	 * work is vital and needs do be done at the earliest
 	 */
-	if (!TASK_QUEUE_CLIENT(prio) ||
-	    pp->lqueue + pp->nthr < cache_param->wthread_max +
-	    cache_param->wthread_queue_limit) {
+	//if (!TASK_QUEUE_CLIENT(prio) ||
+	//    pp->lqueue + pp->nthr < cache_param->wthread_max +
+	//    cache_param->wthread_queue_limit) {
 		pp->nqueued++;
 		pp->lqueue++;
 		VTAILQ_INSERT_TAIL(&pp->queues[prio], task, list);
-	} else {
-		if (prio == TASK_QUEUE_REQ)
-			pp->sdropped++;
-		else
-			pp->rdropped++;
-		retval = -1;
-	}
+	//} else {
+	//	if (prio == TASK_QUEUE_REQ)
+	//		pp->sdropped++;
+	//	else
+	//		pp->rdropped++;
+	//	retval = -1;
+	//}
 	Lck_Unlock(&pp->mtx);
 	return (retval);
 }
