@@ -299,7 +299,7 @@ static void
 Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 {
 	struct worker *wrk2 = NULL;
-	struct pool_task *tp = NULL;
+	struct pool_task *tp = NULL, *tp2 = NULL;
 	struct pool_task tpx, tps;
 	int i, prio_lim, n = 2;
 	uint64_t seq_num;
@@ -329,27 +329,32 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			for (i = 0; i < n; i++) {
-				tp = (struct pool_task*)rr_dequeue(pp->fair_queue, &seq_num);
-				if (tp == NULL)
-					break;
-
+			tp = (struct pool_task*)rr_dequeue(pp->fair_queue, &seq_num);
+			if (tp != NULL) {
 				pp->lqueue--;
 				((struct req*)tp->priv)->seq_num = seq_num;
-				if (i == n-1)
-					break;
+				
+				for (i = 0; i < n - 1; i++) {
+					wrk2 = pool_getidleworker(pp, TASK_QUEUE_REQ);
+					if (wrk2 == NULL)
+						break;
 
-				wrk2 = pool_getidleworker(pp, TASK_QUEUE_REQ);
-				if (wrk2 == NULL)
-					break;
+					tp2 = (struct pool_task*)rr_dequeue(pp->fair_queue, &seq_num);
+					if (tp2 == NULL)
+						break;
 
-				VTAILQ_REMOVE(&pp->idle_queue, &wrk2->task, list);
-				pp->nidle--;
-				AZ(wrk2->task.func);
-				wrk2->task.func = tp->func;
-				wrk2->task.priv = tp->priv;
-				AZ(pthread_cond_signal(&wrk2->cond));
+					pp->lqueue--;
+					((struct req*)tp2->priv)->seq_num = seq_num;
+					VTAILQ_REMOVE(&pp->idle_queue, &wrk2->task, list);
+					pp->nidle--;
+					AZ(wrk2->task.func);
+					wrk2->task.func = tp2->func;
+					wrk2->task.priv = tp2->priv;
+					AZ(pthread_cond_signal(&wrk2->cond));
+				}
+
 			}
+			
 		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||
