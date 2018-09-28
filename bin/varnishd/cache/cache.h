@@ -40,7 +40,6 @@
 #include <pthread.h>
 #include <stdarg.h>
 #include <sys/types.h>
-#include <linux/perf_event.h>
 #include <stdbool.h>
 
 #include "vdef.h"
@@ -233,12 +232,6 @@ enum task_prio {
 	(prio == TASK_QUEUE_REQ || prio == TASK_QUEUE_STR)
 
 /*--------------------------------------------------------------------*/
-#define N_COUNTERS 2
-static const enum perf_hw_id events[N_COUNTERS] = {
-	PERF_COUNT_HW_INSTRUCTIONS,
-	PERF_COUNT_HW_CACHE_MISSES,
-};
-
 struct worker {
 	unsigned		magic;
 #define WORKER_MAGIC		0x6391adcf
@@ -267,8 +260,6 @@ struct worker {
 	unsigned		cur_method;
 	unsigned		seen_methods;
 	unsigned		handling;
-
-	int			resource_fds[N_COUNTERS];
 };
 
 /* Stored object -----------------------------------------------------
@@ -445,6 +436,7 @@ struct req {
 	unsigned		magic;
 #define REQ_MAGIC		0x2751aaa1
 
+	uint64_t		seq_num;
 	enum req_step		req_step;
 	volatile enum req_body_state_e	req_body_status;
 	enum sess_close		doclose;
@@ -529,11 +521,10 @@ struct req {
 
 	/* Temporary accounting */
 	struct acct_req		acct;
-	uint64_t		perf_start[N_COUNTERS];
-	uint64_t		perf_accum[N_COUNTERS];
 
 	struct vrt_privs	privs[1];
 	bool			profile;
+	
 };
 
 /*--------------------------------------------------------------------

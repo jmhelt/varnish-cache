@@ -72,20 +72,6 @@ Req_AcctLogCharge(struct VSC_main *ds, struct req *req)
 #include "tbl/acct_fields_req.h"
 }
 
-#define SAMPLING_FREQ 0.2
-
-bool
-should_profile()
-{
-	const int cutoff = (int)(SAMPLING_FREQ * RAND_MAX);
-	int r = rand();
-
-	if (r <= cutoff)
-		return true;
-	else
-		return false;
-}
-
 /*--------------------------------------------------------------------
  * Alloc/Free a request
  */
@@ -167,10 +153,6 @@ Req_New(const struct worker *wrk, struct sess *sp)
 
 	VRTPRIV_init(req->privs);
 
-	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	memset(req->perf_accum, 0, sizeof(req->perf_accum));
-	req->profile = should_profile();
-
 	return (req);
 }
 
@@ -186,10 +168,6 @@ Req_Release(struct req *req)
 #define ACCT(foo) \
 	AZ(req->acct.foo);
 #include "tbl/acct_fields_req.h"
-
-	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	memset(req->perf_accum, 0, sizeof(req->perf_accum));
-	req->profile = should_profile();
 
 	AZ(req->vcl);
 	if (req->vsl->wid)
@@ -252,10 +230,6 @@ Req_Cleanup(struct sess *sp, struct worker *wrk, struct req *req)
 	req->t_prev = NAN;
 	req->t_req = NAN;
 	req->req_body_status = REQ_BODY_INIT;
-
-	//memset(req->perf_start, 0, sizeof(req->perf_start));
-	memset(req->perf_accum, 0, sizeof(req->perf_accum));
-	req->profile = should_profile();
 
 	req->hash_always_miss = 0;
 	req->hash_ignore_busy = 0;

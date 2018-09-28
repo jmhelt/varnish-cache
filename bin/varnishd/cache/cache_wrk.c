@@ -35,8 +35,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <linux/perf_event.h>
-#include <asm/unistd.h>
 #include <string.h>
 #include <sys/ioctl.h>
 
@@ -98,68 +96,6 @@ WRK_BgThread(pthread_t *thr, const char *name, bgthread_t *func, void *priv)
 }
 
 /*--------------------------------------------------------------------*/
-
-static long
-perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
-		int cpu, int group_fd, unsigned long flags)
-{
-	int ret;
-
-	ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
-		      group_fd, flags);
-	return ret;
-}
-
-void
-start_monitoring(struct worker *wrk)
-{
-	int fd;
-	int leader;
-	int i;
-	struct perf_event_attr pe;
-	int *resource_fds = wrk->resource_fds;
-
-	memset(&pe, 0, sizeof(struct perf_event_attr));
-	pe.type = PERF_TYPE_HARDWARE;
-	pe.size = sizeof(struct perf_event_attr);
-	pe.disabled = 1;
-	pe.read_format = PERF_FORMAT_GROUP;
-
-	for (i = 0; i < N_COUNTERS; i++) {
-		if (i == 0)
-			leader = -1;
-		else
-			leader = resource_fds[0];
-
-		pe.config = events[i];
-		fd = perf_event_open(&pe, 0, -1, leader, 0);
-		if (fd == -1) {
-			fprintf(stderr, "Error opening leader %llx\n", pe.config);
-			exit(EXIT_FAILURE);
-		}
-
-		resource_fds[i] = fd;
-	}
-
-	fd = resource_fds[0];
-	ioctl(fd, PERF_EVENT_IOC_RESET, PERF_IOC_FLAG_GROUP);
-	ioctl(fd, PERF_EVENT_IOC_ENABLE, PERF_IOC_FLAG_GROUP);
-}
-
-void
-stop_monitoring(struct worker *wrk)
-{
-	int i;
-	int fd;
-	int *resource_fds = wrk->resource_fds;
-
-	for (i = 0; i < N_COUNTERS; i++) {
-		fd = resource_fds[i];
-		ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
-		close(fd);
-	}
-}
-
 static void
 WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 {
@@ -178,7 +114,6 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	memset(&ds, 0, sizeof ds);
 	w->stats = &ds;
 	AZ(pthread_cond_init(&w->cond, NULL));
-	start_monitoring(w);
 
 	WS_Init(w->aws, "wrk", ws, thread_workspace);
 
@@ -189,7 +124,6 @@ WRK_Thread(struct pool *qp, size_t stacksize, unsigned thread_workspace)
 	VSL(SLT_WorkThread, 0, "%p end", w);
 	if (w->vcl != NULL)
 		VCL_Rel(&w->vcl);
-	stop_monitoring(w);
 	AZ(pthread_cond_destroy(&w->cond));
 	HSH_Cleanup(w);
 	Pool_Sumstat(w);
@@ -364,9 +298,11 @@ pool_kiss_of_death(struct worker *wrk, void *priv)
 static void
 Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 {
+	struct worker *wrk2 = NULL;
 	struct pool_task *tp = NULL;
 	struct pool_task tpx, tps;
-	int i, prio_lim;
+	int i, prio_lim, n = 2;
+	uint64_t seq_num;
 
 	CHECK_OBJ_NOTNULL(pp, POOL_MAGIC);
 	wrk->pool = pp;
@@ -393,9 +329,27 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			tp = (struct pool_task*)rr_dequeue(pp->fair_queue);
-			if (tp != NULL)
+			for (i = 0; i < n; i++) {
+				tp = (struct pool_task*)rr_dequeue(pp->fair_queue, &seq_num);
+				if (tp == NULL)
+					break;
+
 				pp->lqueue--;
+				((struct req*)tp->priv)->seq_num = seq_num;
+				if (i == n-1)
+					break;
+
+				wrk2 = pool_getidleworker(pp, TASK_QUEUE_REQ);
+				if (wrk2 == NULL)
+					break;
+
+				VTAILQ_REMOVE(&pp->idle_queue, &wrk2->task, list);
+				pp->nidle--;
+				AZ(wrk2->task.func);
+				wrk2->task.func = tp->func;
+				wrk2->task.priv = tp->priv;
+				AZ(pthread_cond_signal(&wrk2->cond));
+			}
 		}
 
 		if ((tp == NULL && wrk->stats->summs > 0) ||
