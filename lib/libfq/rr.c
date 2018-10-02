@@ -169,7 +169,7 @@ rr_dequeue(struct rr *rr, uint64_t *seq_num)
 			/* Get next queue node before we potentially remove this one */
 			tmp = VTAILQ_NEXT(qn, list);
 
-			if (ec > 0) { // exhausted quantum
+			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
 				rr->next_seq_num += 1;
 				qn->prev_seq_num = qn->seq_num;
 				qn->seq_num = rr->next_seq_num;
