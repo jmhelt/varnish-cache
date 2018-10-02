@@ -209,5 +209,6 @@ void
 rr_complete(struct rr *rr, uint32_t key, uint64_t seq_num)
 {
 
-	rr->last_completed_seq_num = seq_num;
+	if (seq_num > rr->last_completed_seq_num)
+		rr->last_completed_seq_num = seq_num;
 }
