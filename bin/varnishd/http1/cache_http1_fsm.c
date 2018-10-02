@@ -449,8 +449,6 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 		else
 			SES_Close(sp, SC_TX_ERROR);
 		WS_Release(req->htc->ws, 0);
-
-		req_complete(wrk->pool, req);
 		AN(http1_req_cleanup(sp, wrk, req));
 		return;
 	}
@@ -476,7 +474,6 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			if (hs < HTC_S_EMPTY) {
 				req->acct.req_hdrbytes +=
 				    req->htc->rxbuf_e - req->htc->rxbuf_b;
-				req_complete(wrk->pool, req);
 				Req_AcctLogCharge(wrk->stats, req);
 				Req_Release(req);
 				switch (hs) {
@@ -498,7 +495,6 @@ HTTP1_Session(struct worker *wrk, struct req *req)
 			}
 			if (hs == HTC_S_IDLE) {
 				wrk->stats->sess_herd++;
-				req_complete(wrk->pool, req);
 				Req_Release(req);
 				SES_Wait(sp, &HTTP1_transport);
 				return;
