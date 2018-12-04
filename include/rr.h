@@ -58,4 +58,7 @@ rr_dequeue(struct rr *rr, uint64_t *seq_num);
 void
 rr_complete(struct rr *rr, uint32_t key, uint64_t seq_num);
 
+int64_t
+rr_cost(uint32_t key);
+
 #endif /* RR_H */
