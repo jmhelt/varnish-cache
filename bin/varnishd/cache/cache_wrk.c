@@ -385,6 +385,8 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 			}
 
 			batch_residual_count--;
+			
+			VSL(SLT_Debug, 0, "Batching loop ends.");
 		}
 
 		VSL(SLT_Debug, 0, "Finish putting new request in batch.");
