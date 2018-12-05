@@ -572,6 +572,7 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 					if (wrk2 == NULL)
 						break;
 
+					VSL(SLT_Debug, 0, "Calling rr_dequeue in new worker");
 //					tp2 = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
 					tp2 = (struct pool_task*)rr_batch_dequeue(pp->fair_queue, &seq_num);
 					if (tp2 == NULL)
