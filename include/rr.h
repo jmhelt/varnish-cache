@@ -24,15 +24,25 @@ struct rr_qn {
 	int64_t ec;
 	uint32_t cost;
 	uint32_t key;
+	uint32_t batch_size;
 	bool active;
 };
 
 VTAILQ_HEAD(active_head, rr_qn);
 
+struct rr_b_vn {
+	VTAILQ_ENTRY(rr_b_vn) list;
+	void *v;
+	uint64_t seq_num;
+};
+
+VTAILQ_HEAD(batch_head, rr_b_vn);
+
 /* Round robin */
 struct rr {
 	uint32_void_tbl *qs;	     /* Queues */
 	struct active_head active_q; /* LL of active queues */
+	struct batch_head batch_q; /* LL of remaining requests in a batch */
 	struct rr_qn *next;	     /* Next queue in active list to pull from */
 	uint64_t next_seq_num;
 	uint64_t last_completed_seq_num;

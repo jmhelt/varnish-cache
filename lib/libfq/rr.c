@@ -11,6 +11,7 @@ rr_init(void)
 
 	rr->qs = uint32_void_tbl_init(0);
 	VTAILQ_INIT(&rr->active_q);
+	VTAILQ_INIT(&rr->batch_q);
 	rr->next = NULL;
 	rr->n_active = 0;
 	rr->rr_counter = 0;
@@ -63,6 +64,7 @@ rr_add_queue(struct rr *rr, uint32_t key)
 	qn->ec = 0;
 	qn->cost = 1;
 	qn->active = false;
+	qn->batch_size = 2;
 
 	if (!uint32_void_tbl_insert(rr->qs, &key, (void**)&qn)) {
 		assert(false); // TODO: Handle error

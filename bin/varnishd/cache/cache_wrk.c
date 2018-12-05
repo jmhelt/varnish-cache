@@ -301,95 +301,224 @@ int64_max(int64_t x, int64_t y)
 }
 
 
-static void*
-local_rr_dequeue(struct rr *rr, uint64_t *seq_num)
-{
-    uint32_t rr_counter = rr->rr_counter;
-    uint32_t n_active = rr->n_active;
-    int64_t max_ec = rr->max_ec;
-    int64_t prev_max_ec = rr->prev_max_ec;
-    bool gave_quantum = rr->gave_quantum;
-    struct rr_qn *qn = rr->next;
-    struct rr_qn *tmp = NULL;
-    struct rr_vn *vn = NULL;
-    void *v = NULL;
-    int64_t ec = 0;
+void *
+rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
+	uint32_t rr_counter = rr->rr_counter;
+	uint32_t n_active = rr->n_active;
+	int64_t max_ec = rr->max_ec;
+	int64_t prev_max_ec = rr->prev_max_ec;
+	bool gave_quantum = rr->gave_quantum;
+	struct rr_qn *qn = rr->next;
+	struct rr_qn *tmp = NULL;
+	struct rr_vn *vn = NULL;
+	struct rr_b_vn *bvn = NULL;
+	void *v = NULL;
+	int64_t ec = 0;
 
-    if (n_active == 0)
-        return NULL;
+	if (n_active == 0)
+		return NULL;
 
-    if (rr_counter == 0) {
-        rr_counter = n_active;
-        prev_max_ec = max_ec;
-        max_ec = 0;
-    }
+	if (!VTAILQ_EMPTY(&rr->batch_q)) {
+		VSL(SLT_Debug, 0, "Returning subsequent request in batch.");
 
-    /* qn may be NULL if this is the first call to dequeue
-     * after rr was completely empty or if we hit the
-     * head of the active queue.
-     */
-    qn = rr->next;
-    if (!qn)
-        qn = VTAILQ_FIRST(&rr->active_q);
+		bvn = VTAILQ_FIRST(&rr->batch_q);
+		VTAILQ_REMOVE(&rr->batch_q, bvn, list);
+		v = bvn->v;
+		*seq_num = bvn->seq_num;
+		free(bvn);
+		return v;
+	}
 
-    ec = qn->ec;
-    if (!gave_quantum) {
-        ec -= prev_max_ec;
-        gave_quantum = true;
-    }
+	if (rr_counter == 0) {
+		rr_counter = n_active;
+		prev_max_ec = max_ec;
+		max_ec = 0;
+	}
 
-    if (rr->last_completed_seq_num >= qn->prev_seq_num) {
-        vn = VTAILQ_FIRST(&qn->q);
-        VTAILQ_REMOVE(&qn->q, vn, list);
+	/* qn may be NULL if this is the first call to dequeue
+	 * after rr was completely empty or if we hit the
+	 * head of the active queue.
+	 */
+	qn = rr->next;
+	if (!qn)
+		qn = VTAILQ_FIRST(&rr->active_q);
 
-        ec += rr_cost(qn->key);
+	ec = qn->ec;
+	if (!gave_quantum) {
+		ec -= prev_max_ec;
+		gave_quantum = true;
+	}
 
-        v = vn->v;
-        free(vn);
-        *seq_num = qn->seq_num;
+	if (rr->last_completed_seq_num >= qn->prev_seq_num) {
+		vn = VTAILQ_FIRST(&qn->q);
+		VTAILQ_REMOVE(&qn->q, vn, list);
 
-		VSL(SLT_Debug, 0, "New request dequeued");
+		ec += rr_cost(qn->key);
 
-        // We need to advance to next queue
-        if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
-            /* Get next queue node before we potentially remove this one */
-            tmp = VTAILQ_NEXT(qn, list);
+		v = vn->v;
+		free(vn);
+		*seq_num = qn->seq_num;
 
-            if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
-                rr->next_seq_num += 1;
-                qn->prev_seq_num = qn->seq_num;
-                qn->seq_num = rr->next_seq_num;
-            } else { // queue is empty
-                ec = 0; // Reset excess counter
+		uint32_t batch_residual_count = qn->batch_size - 1;
 
-                /* Remove node from active queue */
-                qn->active = false;
-                VTAILQ_REMOVE(&rr->active_q, qn, list);
-                n_active -= 1;
-            }
+		while (batch_residual_count > 0 && !VTAILQ_EMPTY(&qn->q)) {
+			VSL(SLT_Debug, 0, "Putting new request in batch.");
 
-            qn->ec = ec;
-            max_ec = int64_max(ec, max_ec);
-            rr_counter -= 1;
+			vn = VTAILQ_FIRST(&qn->q);
+			VTAILQ_REMOVE(&qn->q, vn, list);
 
-            gave_quantum = false;
-            qn = tmp; // Advance to next queue
-        }
-    } else {
-        v = NULL; // Slow down the scheduler
-    }
+			ec += rr_cost(qn->key);
+
+			v = vn->v;
+			free(vn);
+
+			bvn = calloc(1, sizeof(struct rr_b_vn));
+			bvn->v = v;
+			bvn->seq_num = qn->seq_num;
+
+			VTAILQ_INSERT_TAIL(&rr->batch_q, bvn, list);
+
+			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
+				rr->next_seq_num += 1;
+				qn->prev_seq_num = qn->seq_num;
+				qn->seq_num = rr->next_seq_num;
+			}
+
+			batch_residual_count--;
+		}
+
+		// We need to advance to next queue
+		if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
+			/* Get next queue node before we potentially remove this one */
+			tmp = VTAILQ_NEXT(qn, list);
+
+			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
+				rr->next_seq_num += 1;
+				qn->prev_seq_num = qn->seq_num;
+				qn->seq_num = rr->next_seq_num;
+			} else { // queue is empty
+				ec = 0; // Reset excess counter
+
+				/* Remove node from active queue */
+				qn->active = false;
+				VTAILQ_REMOVE(&rr->active_q, qn, list);
+				n_active -= 1;
+			}
+
+			qn->ec = ec;
+			max_ec = int64_max(ec, max_ec);
+			rr_counter -= 1;
+
+			gave_quantum = false;
+			qn = tmp; // Advance to next queue
+		}
 
 
-    /* Store state for next call */
-    rr->gave_quantum = gave_quantum;
-    rr->next = qn;
-    rr->n_active = n_active;
-    rr->rr_counter = rr_counter;
-    rr->max_ec = max_ec;
-    rr->prev_max_ec = prev_max_ec;
+	} else {
+		v = NULL; // Slow down the scheduler
+	}
 
-    return v;
+
+	/* Store state for next call */
+	rr->gave_quantum = gave_quantum;
+	rr->next = qn;
+	rr->n_active = n_active;
+	rr->rr_counter = rr_counter;
+	rr->max_ec = max_ec;
+	rr->prev_max_ec = prev_max_ec;
+
+	return v;
 }
+
+
+//static void *
+//local_rr_dequeue(struct rr *rr, uint64_t *seq_num) {
+//	uint32_t rr_counter = rr->rr_counter;
+//	uint32_t n_active = rr->n_active;
+//	int64_t max_ec = rr->max_ec;
+//	int64_t prev_max_ec = rr->prev_max_ec;
+//	bool gave_quantum = rr->gave_quantum;
+//	struct rr_qn *qn = rr->next;
+//	struct rr_qn *tmp = NULL;
+//	struct rr_vn *vn = NULL;
+//	void *v = NULL;
+//	int64_t ec = 0;
+//
+//	if (n_active == 0)
+//		return NULL;
+//
+//	if (rr_counter == 0) {
+//		rr_counter = n_active;
+//		prev_max_ec = max_ec;
+//		max_ec = 0;
+//	}
+//
+//	/* qn may be NULL if this is the first call to dequeue
+//	 * after rr was completely empty or if we hit the
+//	 * head of the active queue.
+//	 */
+//	qn = rr->next;
+//	if (!qn)
+//		qn = VTAILQ_FIRST(&rr->active_q);
+//
+//	ec = qn->ec;
+//	if (!gave_quantum) {
+//		ec -= prev_max_ec;
+//		gave_quantum = true;
+//	}
+//
+//	if (rr->last_completed_seq_num >= qn->prev_seq_num) {
+//		vn = VTAILQ_FIRST(&qn->q);
+//		VTAILQ_REMOVE(&qn->q, vn, list);
+//
+//		ec += rr_cost(qn->key);
+//
+//		v = vn->v;
+//		free(vn);
+//		*seq_num = qn->seq_num;
+//
+//		VSL(SLT_Debug, 0, "New request dequeued");
+//
+//		// We need to advance to next queue
+//		if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
+//			/* Get next queue node before we potentially remove this one */
+//			tmp = VTAILQ_NEXT(qn, list);
+//
+//			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
+//				rr->next_seq_num += 1;
+//				qn->prev_seq_num = qn->seq_num;
+//				qn->seq_num = rr->next_seq_num;
+//			} else { // queue is empty
+//				ec = 0; // Reset excess counter
+//
+//				/* Remove node from active queue */
+//				qn->active = false;
+//				VTAILQ_REMOVE(&rr->active_q, qn, list);
+//				n_active -= 1;
+//			}
+//
+//			qn->ec = ec;
+//			max_ec = int64_max(ec, max_ec);
+//			rr_counter -= 1;
+//
+//			gave_quantum = false;
+//			qn = tmp; // Advance to next queue
+//		}
+//	} else {
+//		v = NULL; // Slow down the scheduler
+//	}
+//
+//
+//	/* Store state for next call */
+//	rr->gave_quantum = gave_quantum;
+//	rr->next = qn;
+//	rr->n_active = n_active;
+//	rr->rr_counter = rr_counter;
+//	rr->max_ec = max_ec;
+//	rr->prev_max_ec = prev_max_ec;
+//
+//	return v;
+//}
 
 
 /*--------------------------------------------------------------------
@@ -432,7 +561,8 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		if (tp == NULL) {
 			VSL(SLT_Debug, 0, "Calling rr_dequeue");
 
-			tp = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
+//			tp = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
+			tp = (struct pool_task*)rr_batch_dequeue(pp->fair_queue, &seq_num);
 			if (tp != NULL) {
 				pp->lqueue--;
 				((struct req*)tp->priv)->seq_num = seq_num;
@@ -442,7 +572,8 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 					if (wrk2 == NULL)
 						break;
 
-					tp2 = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
+//					tp2 = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
+					tp2 = (struct pool_task*)rr_batch_dequeue(pp->fair_queue, &seq_num);
 					if (tp2 == NULL)
 						break;
 
