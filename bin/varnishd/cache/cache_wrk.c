@@ -316,8 +316,12 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 	void *v = NULL;
 	int64_t ec = 0;
 
-	if (n_active == 0)
+	VSL(SLT_Debug, 0, "rr_batch_dequeue starts.");
+
+	if (n_active == 0) {
+		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 		return NULL;
+	}
 
 	if (!VTAILQ_EMPTY(&rr->batch_q)) {
 		VSL(SLT_Debug, 0, "Returning subsequent request in batch.");
@@ -327,7 +331,8 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 		v = bvn->v;
 		*seq_num = bvn->seq_num;
 		free(bvn);
-		VSL(SLT_Debug, 0, "Subsequent request returned.");
+		VSL(SLT_Debug, 0, "Subsequent request returning.");
+		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 		return v;
 	}
 
@@ -385,11 +390,9 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 			}
 
 			batch_residual_count--;
-			
-			VSL(SLT_Debug, 0, "Batching loop ends.");
-		}
 
-		VSL(SLT_Debug, 0, "Finish putting new request in batch.");
+			VSL(SLT_Debug, 0, "Batching loop back.");
+		}
 
 		// We need to advance to next queue
 		if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
@@ -431,6 +434,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 	rr->max_ec = max_ec;
 	rr->prev_max_ec = prev_max_ec;
 
+	VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 	return v;
 }
 
