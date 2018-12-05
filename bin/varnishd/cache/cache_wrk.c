@@ -311,6 +311,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 	struct rr_qn *qn = rr->next;
 	struct rr_qn *tmp = NULL;
 	struct rr_vn *vn = NULL;
+	struct rr_vn *vn2 = NULL;
 	struct rr_b_vn *bvn = NULL;
 	void *v = NULL;
 	int64_t ec = 0;
@@ -326,6 +327,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 		v = bvn->v;
 		*seq_num = bvn->seq_num;
 		free(bvn);
+		VSL(SLT_Debug, 0, "Subsequent request returned.");
 		return v;
 	}
 
@@ -364,16 +366,14 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 		while (batch_residual_count > 0 && !VTAILQ_EMPTY(&qn->q)) {
 			VSL(SLT_Debug, 0, "Putting new request in batch.");
 
-			vn = VTAILQ_FIRST(&qn->q);
-			VTAILQ_REMOVE(&qn->q, vn, list);
+			vn2 = VTAILQ_FIRST(&qn->q);
+			VTAILQ_REMOVE(&qn->q, vn2, list);
 
 			ec += rr_cost(qn->key);
 
-			v = vn->v;
-			free(vn);
-
 			bvn = calloc(1, sizeof(struct rr_b_vn));
-			bvn->v = v;
+			bvn->v = vn2->v;
+			free(vn2);
 			bvn->seq_num = qn->seq_num;
 
 			VTAILQ_INSERT_TAIL(&rr->batch_q, bvn, list);
@@ -386,6 +386,8 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 
 			batch_residual_count--;
 		}
+
+		VSL(SLT_Debug, 0, "Finish putting new request in batch.");
 
 		// We need to advance to next queue
 		if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
