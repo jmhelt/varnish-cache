@@ -383,11 +383,11 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 
 			VTAILQ_INSERT_TAIL(&rr->batch_q, bvn, list);
 
-			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
-				rr->next_seq_num += 1;
-				qn->prev_seq_num = qn->seq_num;
-				qn->seq_num = rr->next_seq_num;
-			}
+//			if (!VTAILQ_EMPTY(&qn->q)) { // exhausted quantum
+//				rr->next_seq_num += 1;
+//				qn->prev_seq_num = qn->seq_num;
+//				qn->seq_num = rr->next_seq_num;
+//			}
 
 			batch_residual_count--;
 
