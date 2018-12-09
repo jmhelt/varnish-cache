@@ -485,7 +485,7 @@ local_rr_dequeue(struct rr *rr, uint64_t *seq_num) {
 		free(vn);
 		*seq_num = qn->seq_num;
 
-		VSL(SLT_Debug, 0, "New request dequeued");
+//		VSL(SLT_Debug, 0, "New request dequeued");
 
 		// We need to advance to next queue
 		if (ec > 0 || VTAILQ_EMPTY(&qn->q)) {
