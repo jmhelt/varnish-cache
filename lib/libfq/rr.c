@@ -65,8 +65,6 @@ rr_add_queue(struct rr *rr, uint32_t key)
 	qn->cost = 1;
 	qn->active = false;
 	qn->batch_size = 3;
-//	qn->batch_size = 2;
-//	qn->batch_size = 1;
 
 	if (!uint32_void_tbl_insert(rr->qs, &key, (void**)&qn)) {
 		assert(false); // TODO: Handle error
