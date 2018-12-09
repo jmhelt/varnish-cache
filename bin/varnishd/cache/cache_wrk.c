@@ -316,23 +316,23 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 	void *v = NULL;
 	int64_t ec = 0;
 
-	VSL(SLT_Debug, 0, "rr_batch_dequeue starts.");
+//	VSL(SLT_Debug, 0, "rr_batch_dequeue starts.");
 
 	if (n_active == 0) {
-		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
+//		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 		return NULL;
 	}
 
 	if (!VTAILQ_EMPTY(&rr->batch_q)) {
-		VSL(SLT_Debug, 0, "Returning subsequent request in batch.");
+//		VSL(SLT_Debug, 0, "Returning subsequent request in batch.");
 
 		bvn = VTAILQ_FIRST(&rr->batch_q);
 		VTAILQ_REMOVE(&rr->batch_q, bvn, list);
 		v = bvn->v;
 		*seq_num = bvn->seq_num;
 		free(bvn);
-		VSL(SLT_Debug, 0, "Subsequent request returning.");
-		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
+//		VSL(SLT_Debug, 0, "Subsequent request returning.");
+//		VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 		return v;
 	}
 
@@ -369,7 +369,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 		uint32_t batch_residual_count = qn->batch_size - 1;
 
 		while (batch_residual_count > 0 && !VTAILQ_EMPTY(&qn->q)) {
-			VSL(SLT_Debug, 0, "Putting new request in batch.");
+//			VSL(SLT_Debug, 0, "Putting new request in batch.");
 
 			vn2 = VTAILQ_FIRST(&qn->q);
 			VTAILQ_REMOVE(&qn->q, vn2, list);
@@ -391,7 +391,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 
 			batch_residual_count--;
 
-			VSL(SLT_Debug, 0, "Batching loop back.");
+//			VSL(SLT_Debug, 0, "Batching loop back.");
 		}
 
 		// We need to advance to next queue
@@ -434,7 +434,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 	rr->max_ec = max_ec;
 	rr->prev_max_ec = prev_max_ec;
 
-	VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
+//	VSL(SLT_Debug, 0, "rr_batch_dequeue ends.");
 	return v;
 }
 
@@ -567,7 +567,7 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 		}
 
 		if (tp == NULL) {
-			VSL(SLT_Debug, 0, "Calling rr_dequeue");
+//			VSL(SLT_Debug, 0, "Calling rr_dequeue");
 
 //			tp = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
 			tp = (struct pool_task*)rr_batch_dequeue(pp->fair_queue, &seq_num);
@@ -580,7 +580,7 @@ Pool_Work_Thread(struct pool *pp, struct worker *wrk)
 					if (wrk2 == NULL)
 						break;
 
-					VSL(SLT_Debug, 0, "Calling rr_dequeue in new worker");
+//					VSL(SLT_Debug, 0, "Calling rr_dequeue in new worker");
 //					tp2 = (struct pool_task*)local_rr_dequeue(pp->fair_queue, &seq_num);
 					tp2 = (struct pool_task*)rr_batch_dequeue(pp->fair_queue, &seq_num);
 					if (tp2 == NULL)
