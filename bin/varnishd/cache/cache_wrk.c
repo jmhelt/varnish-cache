@@ -439,7 +439,7 @@ rr_batch_dequeue(struct rr *rr, uint64_t *seq_num) {
 }
 
 
-static void *
+void *
 local_rr_dequeue(struct rr *rr, uint64_t *seq_num) {
 	uint32_t rr_counter = rr->rr_counter;
 	uint32_t n_active = rr->n_active;
