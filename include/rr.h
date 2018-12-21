@@ -7,6 +7,8 @@
 #include "uint32_void_tbl.h"
 #include "vqueue.h"
 
+#define	BATCH_SIZE	3
+
 /* Value node */
 struct rr_vn {
 	VTAILQ_ENTRY(rr_vn) list;
