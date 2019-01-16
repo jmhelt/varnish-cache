@@ -223,7 +223,8 @@ rr_complete(struct rr *rr, uint32_t key, void *v, uint32_t cost)
 //		return;
 
 	/* Update cost estimate */
-	qn->cost = int64_max(0.9 * qn->cost, cost);
+	const double alpha = 0.9;
+	qn->cost = (alpha * cost) + ((1.0 - alpha) * qn->cost);
 
 	/* Update surplus based on true cost */
 //	assert(vn->amount_charged != 0);
