@@ -645,7 +645,7 @@ vbf_stp_fetch(struct worker *wrk, struct busyobj *bo)
 
 	if (bo->do_stream) {
 		ObjSetState(wrk, bo->fetch_objcore, BOS_PREP_STREAM);
-		HSH_Unbusy(wrk, bo->fetch_objcore);
+		HSH_Unbusy(wrk, bo);
 		ObjSetState(wrk, bo->fetch_objcore, BOS_STREAM);
 	}
 
@@ -675,7 +675,7 @@ vbf_stp_fetchend(struct worker *wrk, struct busyobj *bo)
 		assert(bo->fetch_objcore->boc->state == BOS_STREAM);
 	else {
 		assert(bo->fetch_objcore->boc->state == BOS_REQ_DONE);
-		HSH_Unbusy(wrk, bo->fetch_objcore);
+		HSH_Unbusy(wrk, bo);
 	}
 
 	/* Recycle the backend connection before setting BOS_FINISHED to
@@ -735,7 +735,7 @@ vbf_stp_condfetch(struct worker *wrk, struct busyobj *bo)
 
 	if (bo->do_stream) {
 		ObjSetState(wrk, bo->fetch_objcore, BOS_PREP_STREAM);
-		HSH_Unbusy(wrk, bo->fetch_objcore);
+		HSH_Unbusy(wrk, bo);
 		ObjSetState(wrk, bo->fetch_objcore, BOS_STREAM);
 	}
 
@@ -854,7 +854,7 @@ vbf_stp_error(struct worker *wrk, struct busyobj *bo)
 	}
 	AZ(ObjSetU64(wrk, bo->fetch_objcore, OA_LEN, o));
 	VSB_destroy(&synth_body);
-	HSH_Unbusy(wrk, bo->fetch_objcore);
+	HSH_Unbusy(wrk, bo);
 	ObjSetState(wrk, bo->fetch_objcore, BOS_FINISHED);
 	return (F_STP_DONE);
 }

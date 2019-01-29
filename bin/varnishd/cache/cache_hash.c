@@ -722,8 +722,9 @@ HSH_Abandon(struct objcore *oc)
  */
 
 void
-HSH_Unbusy(struct worker *wrk, struct objcore *oc)
+HSH_Unbusy(struct worker *wrk, struct busyobj *bo)
 {
+	struct objcore *oc = bo->fetch_objcore;
 	struct objhead *oh;
 	struct rush rush;
 
@@ -758,6 +759,14 @@ HSH_Unbusy(struct worker *wrk, struct objcore *oc)
 	Lck_Unlock(&oh->mtx);
 	if (!(oc->flags & OC_F_PRIVATE))
 		EXP_Insert(wrk, oc);
+
+	/* Copy backend request and response bytes to first request */
+	struct req *req;
+	if (!VTAILQ_EMPTY(rush->reqs)) {
+		req = VTAILQ_FIRST(&rush->reqs);
+		memcpy(&req->be_acct, &bo->acct, sizeof(*(bo->acct)));
+	}
+	
 	hsh_rush2(wrk, &rush);
 }
 

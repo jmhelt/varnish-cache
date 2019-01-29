@@ -187,6 +187,11 @@ Req_Release(struct req *req)
 	AZ(req->acct.foo);
 #include "tbl/acct_fields_req.h"
 
+	/* Make sure the backend request counters have all been zeroed */
+#define ACCT(foo) \
+	AZ(req->be_acct.foo);
+#include "tbl/acct_fields_bereq.h"
+
 	//memset(req->perf_start, 0, sizeof(req->perf_start));
 	memset(req->perf_accum, 0, sizeof(req->perf_accum));
 	req->profile = should_profile();

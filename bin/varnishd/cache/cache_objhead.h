@@ -58,7 +58,7 @@ void HSH_Fail(struct objcore *);
 void HSH_Kill(struct objcore *);
 void HSH_Insert(struct worker *, const void *hash, struct objcore *,
     struct ban *);
-void HSH_Unbusy(struct worker *, struct objcore *);
+void HSH_Unbusy(struct worker *, struct busyobj *);
 int HSH_Snipe(const struct worker *, struct objcore *);
 struct boc *HSH_RefBoc(const struct objcore *);
 void HSH_DerefBoc(struct worker *wrk, struct objcore *);

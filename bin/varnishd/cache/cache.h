@@ -529,6 +529,7 @@ struct req {
 
 	/* Temporary accounting */
 	struct acct_req		acct;
+	struct acct_bereq	be_acct;
 	uint64_t		perf_start[N_COUNTERS];
 	uint64_t		perf_accum[N_COUNTERS];
 
