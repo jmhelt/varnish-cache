@@ -189,6 +189,7 @@ Req_Release(struct req *req)
 
 	/* Make sure the backend request counters have all been zeroed */
 #define ACCT(foo) \
+	req->be_acct.foo = 0;
 	AZ(req->be_acct.foo);
 #include "tbl/acct_fields_bereq.h"
 
