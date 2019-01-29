@@ -762,9 +762,9 @@ HSH_Unbusy(struct worker *wrk, struct busyobj *bo)
 
 	/* Copy backend request and response bytes to first request */
 	struct req *req;
-	if (!VTAILQ_EMPTY(rush->reqs)) {
-		req = VTAILQ_FIRST(&rush->reqs);
-		memcpy(&req->be_acct, &bo->acct, sizeof(*(bo->acct)));
+	if (!VTAILQ_EMPTY(&rush.reqs)) {
+		req = VTAILQ_FIRST(&rush.reqs);
+		memcpy(&req->be_acct, &bo->acct, sizeof(bo->acct));
 	}
 	
 	hsh_rush2(wrk, &rush);
